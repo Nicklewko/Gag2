@@ -43,6 +43,8 @@ Rayfield:Notify({
 	Image = 4483362458,
 })
 
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
 
