@@ -46,6 +46,15 @@ Rayfield:Notify({
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
 
+local function NoclipLoop()
+	local character = player.Character
+	if character ~= nil then
+		for _, child in pairs(character:GetDescendants()) do
+			if child:IsA("BasePart") and child.CanCollide == true then child.CanCollide = false end
+		end
+	end
+end
+
 local function FindFirstDescendantOfClass(parent, className)
 	for _, obj in ipairs(parent:GetDescendants()) do
 		if obj.ClassName == className then
@@ -65,16 +74,16 @@ local function collect(p)
 
 	local prompt = FindFirstDescendantOfClass(p, "ProximityPrompt")
 	if not prompt then return end
+	
+	prompt.HoldDuration = 0
 
 	local oldPos = char:GetPivot()
+	local targetPos = p:IsA("Model") and p:GetPivot().Position or p.Position
 
 	while prompt.Parent do
-		prompt.HoldDuration = 0
-
-		local targetPos = p:IsA("Model") and p:GetPivot().Position or p.Position
 		char:PivotTo(CFrame.new(targetPos - Vector3.new(0, 4, 0)))
-		task.wait(.05)
 		fireproximityprompt(prompt)
+		task.wait()
 	end
 	
 	char:PivotTo(oldPos)
