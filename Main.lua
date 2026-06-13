@@ -46,6 +46,9 @@ Rayfield:Notify({
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
 
+local StealTab = Window:CreateTab("Steal", 4483362458)
+local StealTargetSection = AutoTab:CreateSection("Target")
+
 local function NoclipLoop()
 	local character = player.Character
 	if character ~= nil then
