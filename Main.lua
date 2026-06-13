@@ -83,6 +83,7 @@ local function collect(p)
 	while prompt.Parent do
 		char:PivotTo(CFrame.new(targetPos - Vector3.new(0, 4, 0)))
 		fireproximityprompt(prompt)
+		NoclipLoop()
 		task.wait()
 	end
 	
