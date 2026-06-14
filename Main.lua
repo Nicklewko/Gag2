@@ -2,6 +2,8 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Networking = require(ReplicatedStorage.SharedModules.Networking)
+
 local night = ReplicatedStorage.Night
 
 local player = game.Players.LocalPlayer
