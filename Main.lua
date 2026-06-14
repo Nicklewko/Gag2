@@ -288,6 +288,7 @@ local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
 local StealTab = Window:CreateTab("Steal", 4483362458)
 local StealTargetSection = StealTab:CreateSection("Target")
+local PetTab = Window:CreateTab("Pets", 4483362458)
 
 local NoclipToggle = PlayerTab:CreateToggle({
 	Name = "Noclip",
