@@ -300,7 +300,7 @@ local function steal(fruit)
 	workspace.Gravity = 0
 	local oldPos = char:GetPivot()
 
-	local targetCF = CFrame.new(hp.Position - Vector3.new(0, 4, 0))
+	local targetCF = CFrame.new(hp.Position)
 	local conn = moveTo(hrp, targetCF)
 
 	local success = false
@@ -497,7 +497,7 @@ task.spawn(function()
 			if maxInventory() then
 				local ok, err = pcall(goToSpawnAndComplete)
 				if not ok then warn("goToSpawnAndComplete error:", err) end
-				task.wait(1)
+				task.wait(.1)
 			else
 				local item = getTargetFruit(stealTarget)
 				if item and item.Parent then
