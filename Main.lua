@@ -18,7 +18,10 @@ local seeds = workspace.Map.SeedPackSpawnServerLocations
 
 local collectSeeds = false
 local collectDropped = false
+
 local noclip = false
+local walkSpeed = 16
+local jumpHeight = 7.5
 
 local stealTarget = nil
 local stealTargetToggled = false
@@ -211,6 +214,12 @@ task.spawn(function()
 		if noclip then
 			noclipLoop()
 		end
+		local char, root = getCharacter()
+		if char and char:FindFirstChild("Humanoid") then
+			local hum = char:FindFirstChild("Humanoid")
+			hum.WalkSpeed = walkSpeed
+			hum.JumpHeight = jumpHeight
+		end
 	end
 end)
 
@@ -239,6 +248,30 @@ local NoclipToggle = PlayerTab:CreateToggle({
 	Callback = function(Value)
 		noclip = Value
 	end,
+})
+
+local WalkSpeedSlider = PlayerTab:CreateSlider({
+   Name = "Walk Speed",
+   Range = {0, 100},
+   Increment = 1,
+   Suffix = nil,
+   CurrentValue = walkSpeed,
+   Flag = "walkspeedslider",
+   Callback = function(Value)
+		walkSpeed = Value
+   end,
+})
+
+local JumpHeightSlider = PlayerTab:CreateSlider({
+   Name = "Jump Height",
+   Range = {0, 50},
+   Increment = 0.5,
+   Suffix = nil,
+   CurrentValue = jumpHeight,
+   Flag = "jumpheightslider",
+   Callback = function(Value)
+		jumpHeight = Value
+   end,
 })
 
 local StealTargetSelect = StealTab:CreateDropdown({
