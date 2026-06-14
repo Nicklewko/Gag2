@@ -670,7 +670,6 @@ task.spawn(function()
 							end
 						end
 					else
-						-- Fix #2: war `fruit = plant` (globale Variable) → `local fruit = plant`
 						local fruit = plant
 						local age = fruit:GetAttribute("Age") or 0
 						local maxAge = fruit:GetAttribute("MaxAge") or 1
@@ -679,10 +678,9 @@ task.spawn(function()
 						if age >= maxAge and (not collectMutation or hasMutation) then
 							local val = getFruitValue(fruit)
 							if val >= autoCollectMinValue and val <= autoCollectMaxValue then
-								local fId = fruit:GetAttribute("FruitId")
 								local pId = fruit:GetAttribute("PlantId")
-								if fId and pId then
-									Networking.Garden.CollectFruit:Fire(pId, fId)
+								if pId then
+									Networking.Garden.CollectFruit:Fire(pId)
 									task.wait(0.05)
 								end
 							end
@@ -719,7 +717,6 @@ local function createEsp(fruit)
 			bg.Parent = espFolder
 			activeESPs[fruit] = bg
 		else
-			-- Fix: TextLabel heißt "ValueLabel", nicht standard property
 			local tl = activeESPs[fruit]:FindFirstChild("ValueLabel")
 			if tl then tl.Text = "Val: " .. tostring(val) end
 		end
@@ -728,7 +725,6 @@ end
 
 task.spawn(function()
 	while task.wait(0.5) do
-		-- Fix #6: safe iteration - erst sammeln, dann entfernen
 		local toRemove = {}
 		for fruit, gui in pairs(activeESPs) do
 			if not espEnabled or not fruit or not fruit.Parent or getFruitValue(fruit) < espMinValue then
@@ -978,7 +974,7 @@ VisualTab:CreateSlider({
 	Callback = function(Value) espMinValue = Value end,
 })
 
-local VisualPredictionSection = VisualTab:CreateSection("Predicts (TBA)")
+local VisualPredictionSection = VisualTab:CreateSection("Predictions (TBA)")
 
 VisualTab:CreateToggle({
 	Name = "Predict Events",
