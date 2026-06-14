@@ -334,8 +334,7 @@ local function steal(fruit)
 	local prevPar = fruit.Parent
 	local startTime = os.clock()
 	
-	-- FIX: BeginSteal nur EINMAL aufrufen, um den Server-Timer nicht zu resetten!
-	Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
+	--Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 	
 	local ok, err = pcall(function()
 		while fruit.Parent and fruit.Parent == prevPar do
@@ -345,6 +344,7 @@ local function steal(fruit)
 			end
 
 			noclipLoop()
+			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			fireproximityprompt(pp)
 			task.wait()
 
@@ -487,8 +487,8 @@ local function getTargetFruit(t)
 		local bestValue = -1
 
 		for i, plr in pairs(game.Players:GetChildren()) do
+			if plr == player then continue end
 			local garden = getTargetGarden(plr.Name)
-			-- FIX: Hier wurde canSteal(stealTarget) genutzt, was bei nil fehlgeschlagen ist. Es muss plr.Name sein.
 			if not garden or not canSteal(plr.Name) then continue end
 			for _, target in pairs(garden.Plants:GetChildren()) do
 				local fruits = target:FindFirstChild("Fruits")
