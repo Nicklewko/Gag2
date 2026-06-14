@@ -504,7 +504,6 @@ task.spawn(function()
 			if maxInventory() then
 				local ok, err = pcall(goToSpawnAndComplete)
 				if not ok then warn("goToSpawnAndComplete error:", err) end
-				task.wait(.1)
 			else
 				local item = getTargetFruit(stealTarget)
 				if item and item.Parent then
@@ -516,8 +515,6 @@ task.spawn(function()
 					end
 					local ok2, err2 = pcall(goToSpawnAndComplete)
 					if not ok2 then warn("goToSpawnAndComplete error:", err2) end
-				else
-					task.wait(0.5)
 				end
 			end
 		elseif #queue > 0 then
