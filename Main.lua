@@ -492,13 +492,21 @@ local function getTargetFruit(t)
 			if not garden or not canSteal(plr.Name) then continue end
 			for _, target in pairs(garden.Plants:GetChildren()) do
 				local fruits = target:FindFirstChild("Fruits")
-				if not fruits then continue end
-				for _, targetFruit in pairs(fruits:GetChildren()) do
-					if not isValidFruit(targetFruit) then continue end
-					local value = getFruitValue(targetFruit)
+				if fruits then
+					for _, targetFruit in pairs(fruits:GetChildren()) do
+						if not isValidFruit(targetFruit) then continue end
+						local value = getFruitValue(targetFruit)
+						if value > bestValue then
+							bestValue = value
+							best = targetFruit
+						end
+					end
+				else
+					if not isValidFruit(target) then continue end
+					local value = getFruitValue(target)
 					if value > bestValue then
 						bestValue = value
-						best = targetFruit
+						best = target
 					end
 				end
 			end
@@ -509,10 +517,15 @@ local function getTargetFruit(t)
 		if not garden then return end
 		for _, target in pairs(garden.Plants:GetChildren()) do
 			local fruits = target:FindFirstChild("Fruits")
-			if not fruits then continue end
-			for _, targetFruit in pairs(fruits:GetChildren()) do
-				if isValidFruit(targetFruit) then
-					return targetFruit
+			if fruits then
+				for _, targetFruit in pairs(fruits:GetChildren()) do
+					if isValidFruit(targetFruit) then
+						return targetFruit
+					end
+				end
+			else
+				if isValidFruit(target) then
+					return target
 				end
 			end
 		end
@@ -625,6 +638,34 @@ task.spawn(function()
 	end
 end)
 
+local function createEsp(fruit)
+	local val = getFruitValue(fruit)
+	if val >= espMinValue then
+		if not activeESPs[fruit] then
+			local bg = Instance.new("BillboardGui")
+			bg.Adornee = fruit:FindFirstChild("HarvestPart") or fruit
+			bg.Size = UDim2.new(0, 100, 0, 50)
+			bg.StudsOffset = Vector3.new(0, 2, 0)
+			bg.AlwaysOnTop = true
+										
+			local tl = Instance.new("TextLabel")
+			tl.Parent = bg
+			tl.Size = UDim2.new(1, 0, 1, 0)
+			tl.BackgroundTransparency = 1
+			tl.TextColor3 = Color3.new(0.3, 1, 0.3)
+			tl.TextStrokeTransparency = 0
+			tl.Text = "Val: " .. tostring(val)
+			tl.Font = Enum.Font.GothamBold
+			tl.TextSize = 14
+										
+			bg.Parent = espFolder
+			activeESPs[fruit] = bg
+		else
+			activeESPs[fruit].TextLabel.Text = "Val: " .. tostring(val)
+		end
+	end
+end
+	
 task.spawn(function()
 	while task.wait(0.5) do
 		for fruit, gui in pairs(activeESPs) do
@@ -642,32 +683,10 @@ task.spawn(function()
 						local fruits = plant:FindFirstChild("Fruits")
 						if fruits then
 							for _, fruit in pairs(fruits:GetChildren()) do
-								local val = getFruitValue(fruit)
-								if val >= espMinValue then
-									if not activeESPs[fruit] then
-										local bg = Instance.new("BillboardGui")
-										bg.Adornee = fruit:FindFirstChild("HarvestPart") or fruit
-										bg.Size = UDim2.new(0, 100, 0, 50)
-										bg.StudsOffset = Vector3.new(0, 2, 0)
-										bg.AlwaysOnTop = true
-										
-										local tl = Instance.new("TextLabel")
-										tl.Parent = bg
-										tl.Size = UDim2.new(1, 0, 1, 0)
-										tl.BackgroundTransparency = 1
-										tl.TextColor3 = Color3.new(0.3, 1, 0.3)
-										tl.TextStrokeTransparency = 0
-										tl.Text = "Val: " .. tostring(val)
-										tl.Font = Enum.Font.GothamBold
-										tl.TextSize = 14
-										
-										bg.Parent = espFolder
-										activeESPs[fruit] = bg
-									else
-										activeESPs[fruit].TextLabel.Text = "Val: " .. tostring(val)
-									end
-								end
+								createEsp(fruit)
 							end
+						else
+							createEsp(plant)
 						end
 					end
 				end
