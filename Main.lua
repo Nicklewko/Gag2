@@ -680,7 +680,7 @@ task.spawn(function()
 							if val >= autoCollectMinValue and val <= autoCollectMaxValue then
 								local pId = fruit:GetAttribute("PlantId")
 								if pId then
-									Networking.Garden.CollectFruit:Fire(pId)
+									Networking.Garden.CollectFruit:Fire(pId, "")
 									task.wait(0.05)
 								end
 							end
