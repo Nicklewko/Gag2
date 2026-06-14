@@ -2,7 +2,6 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local gardenZoneData = ReplicatedStorage.GardenZoneData
 local night = ReplicatedStorage.Night
 
 local player = game.Players.LocalPlayer
@@ -81,7 +80,6 @@ local function collect(p)
 
 	prompt.HoldDuration = 0
 
-	-- Fix #4: echten Gravity-Wert speichern
 	local savedGravity = workspace.Gravity
 	workspace.Gravity = 0
 
@@ -106,13 +104,12 @@ local function collect(p)
 
 	conn:Disconnect()
 	char:PivotTo(oldPos)
-	workspace.Gravity = savedGravity  -- Fix #4
+	workspace.Gravity = savedGravity
 end
 
 local function sortQueue()
-	-- Fix #3: Tier 1 hat höchste Priorität → aufsteigend sortieren
 	table.sort(queue, function(a, b)
-		return a.t < b.t
+		return a.t > b.t
 	end)
 end
 
@@ -147,19 +144,11 @@ local function getPlayerList()
 	return pt
 end
 
-local function getPlayerName(text)
-	local playerName = text:match("%] (.-)'s garden")
-	return playerName or nil
-end
-
 local function getTargetGarden(t)
-	for _, plot in pairs(workspace.Gardens:GetChildren()) do
-		local nameTextLabel = plot.Signs.Garden.CorePart.SurfaceGui.Player.TextLabel
-		local n = getPlayerName(nameTextLabel.Text)
-		if n == t then
-			return plot
-		end
-	end
+	local tPlayer = game.Players:FindFirstChild(t)
+	if not tPlayer then return end
+	local plotId = tPlayer:GetAttribute("PlotId")
+	return workspace.Gardens:FindFirstChild("Plot"..plotId)
 end
 
 local function getTargetFruit(t)
@@ -169,8 +158,6 @@ local function getTargetFruit(t)
 	for _, target in pairs(garden.Plants:GetChildren()) do
 		local fruits = target:FindFirstChild("Fruits")
 		if not fruits then continue end
-		-- Fix #1: GetChidren → GetChildren
-		-- Fix #2: HarvestPart via FindFirstChild
 		for _, targetFruit in pairs(fruits:GetChildren()) do
 			local hp = targetFruit:FindFirstChild("HarvestPart")
 			if hp and FindFirstDescendantOfClass(hp, "ProximityPrompt") then
@@ -180,8 +167,14 @@ local function getTargetFruit(t)
 	end
 end
 
+local function maxInventory()
+	local maxSize = player:GetAttribute("MaxFruitCapacity")
+	local current = player:GetAttribute("FruitCount")
+	return current >= maxSize
+end
+
 local function isInGarden(t)
-	return gardenZoneData:FindFirstChild(t)
+	return game.Players:FindFirstChild(t):GetAttribute("IsInOwnGarden")
 end
 
 local function canSteal(t)
@@ -192,12 +185,9 @@ end
 
 task.spawn(function()
 	while true do
-		-- Fix #6: kein debug-print mehr
-
 		if stealTarget and game.Players:FindFirstChild(stealTarget) and stealTargetToggled and canSteal(stealTarget) then
 			local item = getTargetFruit(stealTarget)
 			if item and item.Parent then
-				-- Fix #5: pcall schützt den Thread
 				local ok, err = pcall(collect, item)
 				if not ok then warn("collect (steal) error:", err) end
 			end
