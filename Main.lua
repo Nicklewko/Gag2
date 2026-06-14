@@ -19,8 +19,12 @@ local seeds = workspace.Map.SeedPackSpawnServerLocations
 
 local collectSeeds = false
 local collectDropped = false
+
 local autoSell = false
 local autoSellInventorySize = 100
+
+local autoBuy = false
+local autoBuySelected = {}
 
 local noclip = false
 local walkSpeed = 16
@@ -102,7 +106,6 @@ local function collect(p, maxAtt)
 		end
 	end)
 
-	-- Fix #4: pcall um Loop, Cleanup läuft garantiert danach
 	local att = 0
 	local ok, err = pcall(function()
 		while prompt.Parent do
@@ -122,9 +125,8 @@ local function collect(p, maxAtt)
 end
 
 local function sortQueue()
-	-- Fix #1: Tier 1 (Dropped) hat höchste Priorität → aufsteigend
 	table.sort(queue, function(a, b)
-		return a.t < b.t
+		return a.t > b.t
 	end)
 end
 
@@ -177,9 +179,8 @@ local function getTargetFruit(t)
 		for _, targetFruit in pairs(fruits:GetChildren()) do
 			local hp = targetFruit:FindFirstChild("HarvestPart")
 			if not hp then continue end
-			-- Fix #3: einmal cachen statt doppelt aufrufen
 			local pp = FindFirstDescendantOfClass(hp, "ProximityPrompt")
-			if pp and pp.Enabled then
+			if pp and pp.Enabled and targetFruit:GetAttribute("Age") == targetFruit:GetAttribute("MaxAge") then
 				return targetFruit
 			end
 		end
@@ -194,7 +195,6 @@ local function maxInventory()
 end
 
 local function isInGarden(t)
-	-- Fix #2: nil check vor GetAttribute
 	local p = game.Players:FindFirstChild(t)
 	if not p then return false end
 	return p:GetAttribute("IsInOwnGarden") == true
@@ -209,7 +209,6 @@ end
 
 task.spawn(function()
 	while true do
-		-- Fix #5: bei vollem Inventar nichts sammeln
 		local inventoryFull = maxInventory()
 
 		if not inventoryFull then
@@ -251,6 +250,11 @@ task.spawn(function()
                 Networking.NPCS.SellAll:Fire()
             end
         end
+		if autoBuy then
+			for _, name in pairs(autoBuySelected) do
+				Networking.NPCS.SeedShop:Fire(name)
+			end
+		end
 	end
 end)
 
@@ -353,7 +357,7 @@ local AutoCollectSeedsToggle = AutoTab:CreateToggle({
 	end,
 })
 
-local AutoSellSection = AutoTab:CreateSection("Selling (WIP)")
+local AutoSellSection = AutoTab:CreateSection("Selling")
 
 local AutoSellToggle = AutoTab:CreateToggle({
 	Name = "Auto Sell",
@@ -376,7 +380,30 @@ local AutoSellSizeSlider = AutoTab:CreateSlider({
 	end,
 })
 
+local AutoBuySection = AutoTab:CreateSection("Buying")
+
+local AutoBuyToggle = AutoTab:CreateToggle({
+	Name = "Auto Buy",
+	CurrentValue = autoBuy,
+	Flag = "autobuy",
+	Callback = function(Value)
+		autoBuy = Value
+	end,
+})
+
+local AutoBuySelect = AutoTab:CreateDropdown({
+	Name = "Select Fruits",
+	Options = {},
+	CurrentOption = {},
+	MultipleOptions = true,
+	Flag = "autobuyselected",
+	Callback = function(Options)
+		autoBuySelected = Options
+	end,
+})
+
 StealTargetSelect:Refresh(getPlayerList())
+AutoBuySelect:Refresh(getPlayerList())
 
 game.Players.PlayerAdded:Connect(function()
 	StealTargetSelect:Refresh(getPlayerList())
