@@ -171,6 +171,7 @@ local function getSeedList()
 			table.insert(st, name)
 		end
 	end
+	return st
 end
 
 local function getTargetGarden(t)
