@@ -2,12 +2,9 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Networking = require(ReplicatedStorage.SharedModules.Networking)
-
 local night = ReplicatedStorage.Night
 
 local player = game.Players.LocalPlayer
-local cam = workspace.CurrentCamera
 
 local function getCharacter()
 	local char = player.Character or player.CharacterAdded:Wait()
@@ -103,23 +100,29 @@ local function collect(p, maxAtt)
 		end
 	end)
 
+	-- Fix #4: pcall um Loop, Cleanup läuft garantiert danach
 	local att = 0
-	while prompt.Parent do
-		if maxAtt and att >= maxAtt then break end
-		att += 1
-		fireproximityprompt(prompt)
-		noclipLoop()
-		task.wait()
-	end
+	local ok, err = pcall(function()
+		while prompt.Parent do
+			if maxAtt and att >= maxAtt then break end
+			att += 1
+			fireproximityprompt(prompt)
+			noclipLoop()
+			task.wait()
+		end
+	end)
 
 	conn:Disconnect()
 	char:PivotTo(oldPos)
 	workspace.Gravity = savedGravity
+
+	if not ok then warn("collect loop error:", err) end
 end
 
 local function sortQueue()
+	-- Fix #1: Tier 1 (Dropped) hat höchste Priorität → aufsteigend
 	table.sort(queue, function(a, b)
-		return a.t > b.t
+		return a.t < b.t
 	end)
 end
 
@@ -147,7 +150,7 @@ end
 
 local function getPlayerList()
 	local pt = {}
-	for _, p in pairs(game.Players:GetChildren()) do
+	for _, p in pairs(game.Players:GetPlayers()) do
 		if p == player then continue end
 		table.insert(pt, p.Name)
 	end
@@ -158,7 +161,8 @@ local function getTargetGarden(t)
 	local tPlayer = game.Players:FindFirstChild(t)
 	if not tPlayer then return end
 	local plotId = tPlayer:GetAttribute("PlotId")
-	return workspace.Gardens:FindFirstChild("Plot"..plotId)
+	if not plotId then return end
+	return workspace.Gardens:FindFirstChild("Plot" .. plotId)
 end
 
 local function getTargetFruit(t)
@@ -170,7 +174,10 @@ local function getTargetFruit(t)
 		if not fruits then continue end
 		for _, targetFruit in pairs(fruits:GetChildren()) do
 			local hp = targetFruit:FindFirstChild("HarvestPart")
-			if hp and FindFirstDescendantOfClass(hp, "ProximityPrompt") and FindFirstDescendantOfClass(hp, "ProximityPrompt").Enabled == true then
+			if not hp then continue end
+			-- Fix #3: einmal cachen statt doppelt aufrufen
+			local pp = FindFirstDescendantOfClass(hp, "ProximityPrompt")
+			if pp and pp.Enabled then
 				return targetFruit
 			end
 		end
@@ -180,32 +187,42 @@ end
 local function maxInventory()
 	local maxSize = player:GetAttribute("MaxFruitCapacity")
 	local current = player:GetAttribute("FruitCount")
+	if not maxSize or not current then return false end
 	return current >= maxSize - 1
 end
 
 local function isInGarden(t)
-	return game.Players:FindFirstChild(t):GetAttribute("IsInOwnGarden")
+	-- Fix #2: nil check vor GetAttribute
+	local p = game.Players:FindFirstChild(t)
+	if not p then return false end
+	return p:GetAttribute("IsInOwnGarden") == true
 end
 
 local function canSteal(t)
 	if not isInGarden(t) and night.Value then
 		return true
 	end
+	return false
 end
 
 task.spawn(function()
 	while true do
-		if stealTarget and game.Players:FindFirstChild(stealTarget) and stealTargetToggled and canSteal(stealTarget) then
-			local item = getTargetFruit(stealTarget)
-			if item and item.Parent then
-				local ok, err = pcall(collect, item, 10)
-				if not ok then warn("collect (steal) error:", err) end
-			end
-		elseif #queue > 0 then
-			local item = table.remove(queue, 1)
-			if item and item.m and item.m.Parent then
-				local ok, err = pcall(collect, item.m)
-				if not ok then warn("collect (queue) error:", err) end
+		-- Fix #5: bei vollem Inventar nichts sammeln
+		local inventoryFull = maxInventory()
+
+		if not inventoryFull then
+			if stealTarget and game.Players:FindFirstChild(stealTarget) and stealTargetToggled and canSteal(stealTarget) then
+				local item = getTargetFruit(stealTarget)
+				if item and item.Parent then
+					local ok, err = pcall(collect, item, 10)
+					if not ok then warn("collect (steal) error:", err) end
+				end
+			elseif #queue > 0 then
+				local item = table.remove(queue, 1)
+				if item and item.m and item.m.Parent then
+					local ok, err = pcall(collect, item.m)
+					if not ok then warn("collect (queue) error:", err) end
+				end
 			end
 		end
 
@@ -218,18 +235,20 @@ task.spawn(function()
 		if noclip then
 			noclipLoop()
 		end
-		local char, root = getCharacter()
-		if char and char:FindFirstChild("Humanoid") then
+		local char = player.Character
+		if char then
 			local hum = char:FindFirstChild("Humanoid")
-			hum.WalkSpeed = walkSpeed
-			hum.JumpHeight = jumpHeight
-		end
-		if autoSell then
-			local invSize = player:GetAttribute("FruitCount")
-			if invSize >= autoSellInventorySize then
-				Networking.NPCS.SellAll:Fire()
+			if hum then
+				hum.WalkSpeed = walkSpeed
+				hum.JumpHeight = jumpHeight
 			end
 		end
+		if autoSell then
+            local invSize = player:GetAttribute("FruitCount")
+            if invSize >= autoSellInventorySize then
+                Networking.NPCS.SellAll:Fire()
+            end
+        end
 	end
 end)
 
@@ -261,27 +280,27 @@ local NoclipToggle = PlayerTab:CreateToggle({
 })
 
 local WalkSpeedSlider = PlayerTab:CreateSlider({
-   Name = "Walk Speed",
-   Range = {0, 100},
-   Increment = 1,
-   Suffix = nil,
-   CurrentValue = walkSpeed,
-   Flag = "walkspeedslider",
-   Callback = function(Value)
+	Name = "Walk Speed",
+	Range = {0, 100},
+	Increment = 1,
+	Suffix = nil,
+	CurrentValue = walkSpeed,
+	Flag = "walkspeedslider",
+	Callback = function(Value)
 		walkSpeed = Value
-   end,
+	end,
 })
 
 local JumpHeightSlider = PlayerTab:CreateSlider({
-   Name = "Jump Height",
-   Range = {0, 50},
-   Increment = 0.5,
-   Suffix = nil,
-   CurrentValue = jumpHeight,
-   Flag = "jumpheightslider",
-   Callback = function(Value)
+	Name = "Jump Height",
+	Range = {0, 50},
+	Increment = 0.5,
+	Suffix = nil,
+	CurrentValue = jumpHeight,
+	Flag = "jumpheightslider",
+	Callback = function(Value)
 		jumpHeight = Value
-   end,
+	end,
 })
 
 local StealTargetSelect = StealTab:CreateDropdown({
@@ -344,15 +363,15 @@ local AutoSellToggle = AutoTab:CreateToggle({
 })
 
 local AutoSellSizeSlider = AutoTab:CreateSlider({
-   Name = "Sell at",
-   Range = {0, 100},
-   Increment = 1,
-   Suffix = "Fruits",
-   CurrentValue = autoSellInventorySize,
-   Flag = "autosellinventorysize",
-   Callback = function(Value)
+	Name = "Sell at",
+	Range = {0, 100},
+	Increment = 1,
+	Suffix = "Fruits",
+	CurrentValue = autoSellInventorySize,
+	Flag = "autosellinventorysize",
+	Callback = function(Value)
 		autoSellInventorySize = Value
-   end,
+	end,
 })
 
 StealTargetSelect:Refresh(getPlayerList())
