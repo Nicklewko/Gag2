@@ -522,6 +522,14 @@ local function canSteal(t)
 	return false
 end
 
+local function sellAll()
+	local invSize = player:GetAttribute("FruitCount")
+	if invSize and invSize >= autoSellInventorySize then
+		Networking.NPCS.SellAll:Fire()
+	end
+end
+player:GetAttributeChangedSignal("FruitCount"):Connect(sellAll)
+
 task.spawn(function()
 	while true do
 		if (stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget) and canSteal(stealTarget)) or stealBest then
@@ -565,13 +573,6 @@ task.spawn(function()
 			if hum then
 				hum.WalkSpeed = walkSpeed
 				hum.JumpHeight = jumpHeight
-			end
-		end
-
-		if autoSell then
-			local invSize = player:GetAttribute("FruitCount")
-			if invSize and invSize >= autoSellInventorySize then
-				Networking.NPCS.SellAll:Fire()
 			end
 		end
 
@@ -779,7 +780,7 @@ AutoTab:CreateToggle({
 	Name = "Auto Sell",
 	CurrentValue = autoSell,
 	Flag = "autosell",
-	Callback = function(Value) autoSell = Value end,
+	Callback = function(Value) autoSell = Value sellAll() end,
 })
 
 AutoTab:CreateSlider({
@@ -789,7 +790,7 @@ AutoTab:CreateSlider({
 	Suffix = "Fruits",
 	CurrentValue = autoSellInventorySize,
 	Flag = "autosellinventorysize",
-	Callback = function(Value) autoSellInventorySize = Value end,
+	Callback = function(Value) autoSellInventorySize = Value sellAll() end,
 })
 
 AutoTab:CreateSection("Buying")
