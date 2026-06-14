@@ -67,7 +67,7 @@ local function FindFirstDescendantOfClass(parent, className)
 	return nil
 end
 
-local function collect(p)
+local function collect(p, maxAtt)
 	local char, root = getCharacter()
 	if not char or not char:FindFirstChild("Head") then return end
 	if not p or not p.Parent then return end
@@ -96,7 +96,10 @@ local function collect(p)
 		end
 	end)
 
+	local att = 0
 	while prompt.Parent do
+		if att == maxAtt or math.huge() then break end
+		att += 1
 		fireproximityprompt(prompt)
 		noclipLoop()
 		task.wait()
@@ -160,7 +163,7 @@ local function getTargetFruit(t)
 		if not fruits then continue end
 		for _, targetFruit in pairs(fruits:GetChildren()) do
 			local hp = targetFruit:FindFirstChild("HarvestPart")
-			if hp and FindFirstDescendantOfClass(hp, "ProximityPrompt") then
+			if hp and FindFirstDescendantOfClass(hp, "ProximityPrompt") and FindFirstDescendantOfClass(hp, "ProximityPrompt").Enabled == true then
 				return targetFruit
 			end
 		end
@@ -170,7 +173,7 @@ end
 local function maxInventory()
 	local maxSize = player:GetAttribute("MaxFruitCapacity")
 	local current = player:GetAttribute("FruitCount")
-	return current >= maxSize
+	return current >= maxSize - 1
 end
 
 local function isInGarden(t)
@@ -188,7 +191,7 @@ task.spawn(function()
 		if stealTarget and game.Players:FindFirstChild(stealTarget) and stealTargetToggled and canSteal(stealTarget) then
 			local item = getTargetFruit(stealTarget)
 			if item and item.Parent then
-				local ok, err = pcall(collect, item)
+				local ok, err = pcall(collect, item, 10)
 				if not ok then warn("collect (steal) error:", err) end
 			end
 		elseif #queue > 0 then
