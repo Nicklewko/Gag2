@@ -474,7 +474,7 @@ local function getTargetFruit(t)
 
 		for i, plr in pairs(game.Players:GetChildren()) do
 			local garden = getTargetGarden(plr.Name)
-			if not garden then continue end
+			if not garden or not canSteal(stealTarget) then continue end
 			for _, target in pairs(garden.Plants:GetChildren()) do
 				local fruits = target:FindFirstChild("Fruits")
 				if not fruits then continue end
@@ -635,7 +635,6 @@ task.spawn(function()
 								local val = getFruitValue(fruit)
 								if val >= espMinValue then
 									if not activeESPs[fruit] then
-										-- Erstelle das GUI einmalig
 										local bg = Instance.new("BillboardGui")
 										bg.Adornee = fruit:FindFirstChild("HarvestPart") or fruit
 										bg.Size = UDim2.new(0, 100, 0, 50)
@@ -655,7 +654,6 @@ task.spawn(function()
 										bg.Parent = espFolder
 										activeESPs[fruit] = bg
 									else
-										-- Update Wert, falls er sich ändert
 										activeESPs[fruit].TextLabel.Text = "Val: " .. tostring(val)
 									end
 								end
@@ -786,7 +784,7 @@ AutoTab:CreateToggle({
 
 AutoTab:CreateSlider({
 	Name = "Sell at",
-	Range = {0, 100},
+	Range = {1, 100},
 	Increment = 1,
 	Suffix = "Fruits",
 	CurrentValue = autoSellInventorySize,
