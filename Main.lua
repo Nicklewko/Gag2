@@ -6,8 +6,36 @@ local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 local GearData = require(ReplicatedStorage.SharedModules.GearShopData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
-local MutationData = require(ReplicatedStorage.SharedModules.MutationData)
 local FruitValueCalc = require(ReplicatedStorage.SharedModules.FruitValueCalc)
+
+-- Statt: local MutationData = require(ReplicatedStorage.SharedModules.MutationData)
+
+local MutationData
+do
+    local mutationMultipliers = {}
+    local mutationNames = {"Gold", "Rainbow", "Electric", "Frozen", "Bloodlit", "Chained", "Starstruck"}
+    local MutationDataFolder = ReplicatedStorage.SharedModules.MutationData
+
+    for _, name in ipairs(mutationNames) do
+        local subModule = MutationDataFolder:FindFirstChild(name)
+        if subModule then
+            local ok, result = pcall(require, subModule)
+            if ok and result and result.PriceMultiplier then
+                mutationMultipliers[name] = result.PriceMultiplier
+            else
+                warn("MutationData: Sub-Modul", name, "fehlgeschlagen, Fallback 1x")
+                mutationMultipliers[name] = 1
+            end
+        end
+    end
+
+    MutationData = {
+        ReturnPriceMultiplier = function(mutation)
+            if not mutation or mutation == "" then return 1 end
+            return mutationMultipliers[mutation] or 1
+        end
+    }
+end
 
 local night = ReplicatedStorage.Night
 local player = game.Players.LocalPlayer
