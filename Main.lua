@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 local GearData = require(ReplicatedStorage.SharedModules.GearShopData)
+local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)  -- neu
+local MutationData = require(ReplicatedStorage.SharedModules.MutationData)    -- neu
 
 local night = ReplicatedStorage.Night
 local player = game.Players.LocalPlayer
@@ -52,7 +54,6 @@ local spawnPos = plot:WaitForChild("SpawnPoint")
 
 local queue = {}
 local stealBlacklist = setmetatable({}, { __mode = "k" })
-local MAX_STEAL_ATT = 25
 
 local Window = Rayfield:CreateWindow({
 	Name = "Gag2 Hub",
@@ -104,6 +105,29 @@ local function moveTo(hrp, targetCF)
 			hrp.AssemblyAngularVelocity = Vector3.zero
 		end
 	end)
+end
+
+-- Exakt dieselbe Logik wie ReplicatedStorage.SharedModules.CalculateStealDuration
+local function calculateStealDuration(fruit)
+	local seedName = fruit:GetAttribute("SeedName") or "Carrot"
+	local age = fruit:GetAttribute("Age") or 1
+	local mutation = fruit:GetAttribute("Mutation")
+
+	local sellValue = SellValueData[seedName]
+	if not sellValue then
+		warn("calculateStealDuration: kein SellValue für", seedName, "→ fallback 5s")
+		return 5
+	end
+
+	local v2 = math.floor(sellValue * age ^ 3)
+	if mutation and mutation ~= "" then
+		local ok, mult = pcall(MutationData.ReturnPriceMultiplier, mutation)
+		if ok and mult then
+			v2 = v2 * mult
+		end
+	end
+
+	return math.sqrt(v2)
 end
 
 local function collect(p, maxAtt)
@@ -174,6 +198,9 @@ local function steal(fruit)
 		return false
 	end
 
+	-- Duration berechnen: exakt wie das Spiel, +0.1s Puffer
+	local duration = calculateStealDuration(fruit) + 0.1
+
 	local savedGravity = workspace.Gravity
 	workspace.Gravity = 0
 	local oldPos = char:GetPivot()
@@ -182,17 +209,22 @@ local function steal(fruit)
 	local conn = moveTo(hrp, targetCF)
 
 	local success = false
-	local att = 0
-
 	local prevPar = fruit.Parent
+	local startTime = os.clock()
 
 	local ok, err = pcall(function()
-		while fruit.Parent and fruit.Parent == prevPar and att < MAX_STEAL_ATT do
-			att += 1
+		while fruit.Parent and fruit.Parent == prevPar do
+			-- Zeit abgelaufen → Fruit sollte jetzt gestohlen sein
+			if os.clock() - startTime >= duration then
+				success = true
+				break
+			end
+
 			noclipLoop()
 			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			task.wait()
 
+			-- Fruit verschwunden = erfolgreich gestohlen
 			if not fruit.Parent or fruit.Parent ~= prevPar then
 				success = true
 				break
@@ -211,7 +243,7 @@ local function steal(fruit)
 	end
 
 	if not success then
-		warn("steal: max Versuche erreicht, blacklist")
+		warn("steal: fehlgeschlagen, blacklist")
 		stealBlacklist[fruit] = true
 	end
 
@@ -249,7 +281,7 @@ end
 
 local function sortQueue()
 	table.sort(queue, function(a, b)
-		return a.t > b.t
+		return a.t < b.t
 	end)
 end
 
@@ -358,15 +390,23 @@ end
 task.spawn(function()
 	while true do
 		if stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget) and canSteal(stealTarget) then
-			local item = getTargetFruit(stealTarget)
-			if item and item.Parent then
-				local ok, err = pcall(steal, item)
-				if not ok then
-					warn("steal (main loop) error:", err)
-					stealBlacklist[item] = true
-				end
+			if maxInventory() then
 				local ok, err = pcall(goToSpawnAndComplete)
 				if not ok then warn("goToSpawnAndComplete error:", err) end
+				task.wait(1)
+			else
+				local item = getTargetFruit(stealTarget)
+				if item and item.Parent then
+					local ok, err = pcall(steal, item)
+					if not ok then
+						warn("steal (main loop) error:", err)
+						stealBlacklist[item] = true
+					end
+					local ok2, err2 = pcall(goToSpawnAndComplete)
+					if not ok2 then warn("goToSpawnAndComplete error:", err2) end
+				else
+					task.wait(0.5)
+				end
 			end
 		elseif #queue > 0 then
 			local item = table.remove(queue, 1)
@@ -422,6 +462,7 @@ seeds.ChildAdded:Connect(function(p)
 	if collectSeeds then addQueue(p, 2) end
 end)
 
+-- UI
 local PlayerTab = Window:CreateTab("Player", 4483362458)
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
@@ -458,9 +499,7 @@ StealTab:CreateToggle({
 	Name = "Steal Best (WIP)",
 	CurrentValue = stealBest,
 	Flag = "stealbesttoggled",
-	Callback = function(Value)
-		stealBest = Value
-	end,
+	Callback = function(Value) stealBest = Value end,
 })
 
 local StealTargetSection = StealTab:CreateSection("Target")
@@ -495,9 +534,7 @@ StealTab:CreateToggle({
 	Name = "Anti Steal (WIP)",
 	CurrentValue = antiSteal,
 	Flag = "antistealtoggled",
-	Callback = function(Value)
-		antiSteal = Value
-	end,
+	Callback = function(Value) antiSteal = Value end,
 })
 
 AutoTab:CreateToggle({
