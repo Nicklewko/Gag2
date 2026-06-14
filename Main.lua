@@ -172,7 +172,6 @@ local AutoMainSection = AutoTab:CreateSection("Main")
 
 local StealTab = Window:CreateTab("Steal", 4483362458)
 local StealTargetSection = StealTab:CreateSection("Target")
-
 local StealTargetSelect = StealTab:CreateDropdown({
    Name = "Select Target",
    Options = {},
