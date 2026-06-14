@@ -50,7 +50,7 @@ local spawnPos = plot:WaitForChild("SpawnPoint")
 
 local queue = {}
 local stealBlacklist = setmetatable({}, { __mode = "k" })
-local MAX_STEAL_ATT = 15
+local MAX_STEAL_ATT = 15000
 
 local Window = Rayfield:CreateWindow({
 	Name = "Gag2 Hub",
@@ -187,7 +187,7 @@ local function steal(fruit)
 			att += 1
 			noclipLoop()
 			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
-			task.wait(0.1)
+			task.wait()
 
 			if not fruit.Parent then
 				success = true
@@ -236,9 +236,9 @@ local function goToSpawnAndComplete()
 	end
 
 	local conn = moveTo(hrp, targetCF)
-	task.wait(0.1)
+	task.wait()
 	Networking.Steal.CompleteSteal:Fire()
-	task.wait(0.1)
+	task.wait()
 	conn:Disconnect()
 	workspace.Gravity = savedGravity
 end
@@ -354,22 +354,16 @@ end
 task.spawn(function()
 	while true do
 		if stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget) and canSteal(stealTarget) then
-			if maxInventory() then
+			local item = getTargetFruit(stealTarget)
+			if item and item.Parent then
+				local ok, err = pcall(steal, item)
+				if not ok then
+					warn("steal (main loop) error:", err)
+					stealBlacklist[item] = true
+				end
 				local ok, err = pcall(goToSpawnAndComplete)
 				if not ok then warn("goToSpawnAndComplete error:", err) end
-			else
-				local item = getTargetFruit(stealTarget)
-				if item and item.Parent then
-					local ok, err = pcall(steal, item)
-					if not ok then
-						warn("steal (main loop) error:", err)
-						stealBlacklist[item] = true
-					end
-					local ok, err = pcall(goToSpawnAndComplete)
-					if not ok then warn("goToSpawnAndComplete error:", err) end
-				end
 			end
-			task.wait(0.5)
 		elseif #queue > 0 then
 			local item = table.remove(queue, 1)
 			if item and item.m and item.m.Parent then
