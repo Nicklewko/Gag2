@@ -188,8 +188,6 @@ local function steal(fruit)
 			noclipLoop()
 			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			task.wait(0.1)
-			Networking.Steal.CompleteSteal:Fire()
-			task.wait(0.4)
 
 			if not fruit.Parent then
 				success = true
@@ -238,9 +236,9 @@ local function goToSpawnAndComplete()
 	end
 
 	local conn = moveTo(hrp, targetCF)
-	task.wait(0.5)
+	task.wait(0.1)
 	Networking.Steal.CompleteSteal:Fire()
-	task.wait(0.5)
+	task.wait(0.1)
 	conn:Disconnect()
 	workspace.Gravity = savedGravity
 end
@@ -367,6 +365,8 @@ task.spawn(function()
 						warn("steal (main loop) error:", err)
 						stealBlacklist[item] = true
 					end
+					local ok, err = pcall(goToSpawnAndComplete)
+					if not ok then warn("goToSpawnAndComplete error:", err) end
 				end
 			end
 			task.wait(0.5)
