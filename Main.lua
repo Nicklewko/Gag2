@@ -179,7 +179,7 @@ local function moveTo(hrp, targetCF)
 end
 
 local function calculateStealDuration(fruit)
-	local seedName = fruit:GetAttribute("SeedName") or "Carrot"
+	local seedName = fruit:GetAttribute("CorePartName") or "Carrot"
 	local age = fruit:GetAttribute("Age") or 1
 	local mutation = fruit:GetAttribute("Mutation")
 
@@ -203,7 +203,7 @@ local function getFruitValue(fruit)
 		return cached.v
 	end
 
-	local name = fruit:GetAttribute("SeedName")
+	local name = fruit:GetAttribute("CorePartName")
 	if not name then return 0 end
 
 	local size = fruit:GetAttribute("SizeMultiplier") or 1
@@ -302,10 +302,12 @@ local function steal(fruit)
 
 	local targetCF = CFrame.new(hp.Position)
 	local conn = moveTo(hrp, targetCF)
+	local pp = FindFirstDescendantOfClass(hp, "ProximityPrompt")
 
 	local success = false
 	local prevPar = fruit.Parent
 	local startTime = os.clock()
+	print(duration)
 
 	local ok, err = pcall(function()
 		while fruit.Parent and fruit.Parent == prevPar do
@@ -315,6 +317,7 @@ local function steal(fruit)
 			end
 
 			noclipLoop()
+			fireproximityprompt(pp)
 			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			task.wait()
 
@@ -324,6 +327,8 @@ local function steal(fruit)
 			end
 		end
 	end)
+
+	warn("Finished")
 
 	conn:Disconnect()
 	char:PivotTo(oldPos)
