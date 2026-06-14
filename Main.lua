@@ -103,7 +103,7 @@ local function collect(p, maxAtt)
 
 	local att = 0
 	while prompt.Parent do
-		if att == maxAtt or math.huge then break end
+		if maxAtt and att >= maxAtt then break end
 		att += 1
 		fireproximityprompt(prompt)
 		noclipLoop()
