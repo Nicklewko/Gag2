@@ -50,7 +50,7 @@ local spawnPos = plot:WaitForChild("SpawnPoint")
 
 local queue = {}
 local stealBlacklist = setmetatable({}, { __mode = "k" })
-local MAX_STEAL_ATT = 15000
+local MAX_STEAL_ATT = 25
 
 local Window = Rayfield:CreateWindow({
 	Name = "Gag2 Hub",
