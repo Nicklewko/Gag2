@@ -3,7 +3,6 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
-
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 
 local night = ReplicatedStorage.Night
@@ -265,7 +264,7 @@ task.spawn(function()
         end
 		if autoBuy then
 			for _, name in pairs(autoBuySelected) do
-				Networking.NPCS.SeedShop:Fire(name)
+				Networking.SeedShop.PurchaseSeed:Fire(name)
 			end
 		end
 	end
