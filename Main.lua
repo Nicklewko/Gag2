@@ -5,8 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 local GearData = require(ReplicatedStorage.SharedModules.GearShopData)
-local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)  -- neu
-local MutationData = require(ReplicatedStorage.SharedModules.MutationData)    -- neu
+local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
+local MutationData = require(ReplicatedStorage.SharedModules.MutationData)
+local FruitValueCalc = require(ReplicatedStorage.SharedModules.FruitValueCalc)
 
 local night = ReplicatedStorage.Night
 local player = game.Players.LocalPlayer
@@ -54,6 +55,14 @@ local spawnPos = plot:WaitForChild("SpawnPoint")
 
 local queue = {}
 local stealBlacklist = setmetatable({}, { __mode = "k" })
+
+local CACHE_TTL = 8
+local valueCache = setmetatable({}, { __mode = "k" })
+
+local function resetStealState()
+	stealBlacklist = setmetatable({}, { __mode = "k" })
+	valueCache = setmetatable({}, { __mode = "k" })
+end
 
 local Window = Rayfield:CreateWindow({
 	Name = "Gag2 Hub",
@@ -107,7 +116,6 @@ local function moveTo(hrp, targetCF)
 	end)
 end
 
--- Exakt dieselbe Logik wie ReplicatedStorage.SharedModules.CalculateStealDuration
 local function calculateStealDuration(fruit)
 	local seedName = fruit:GetAttribute("SeedName") or "Carrot"
 	local age = fruit:GetAttribute("Age") or 1
@@ -128,6 +136,36 @@ local function calculateStealDuration(fruit)
 	end
 
 	return math.sqrt(v2)
+end
+
+local function getFruitValue(fruit)
+	local cached = valueCache[fruit]
+	if cached and os.clock() - cached.t < CACHE_TTL then
+		return cached.v
+	end
+
+	local name = fruit:GetAttribute("SeedName")
+	if not name then return 0 end
+
+	local size = fruit:GetAttribute("SizeMultiplier") or 1
+	local mutation = fruit:GetAttribute("Mutation")
+	local decay = fruit:GetAttribute("DecayAlpha")
+
+	local ok, value = pcall(FruitValueCalc, name, size, mutation, player, decay)
+	local v = (ok and type(value) == "number") and value or 0
+
+	valueCache[fruit] = { v = v, t = os.clock() }
+	return v
+end
+
+local function isValidFruit(fruit)
+	if stealBlacklist[fruit] then return false end
+	local hp = fruit:FindFirstChild("HarvestPart")
+	if not hp then return false end
+	local pp = FindFirstDescendantOfClass(hp, "ProximityPrompt")
+	local age = fruit:GetAttribute("Age")
+	local maxAge = fruit:GetAttribute("MaxAge")
+	return pp ~= nil and pp.Enabled and age ~= nil and maxAge ~= nil and age >= maxAge
 end
 
 local function collect(p, maxAtt)
@@ -180,7 +218,7 @@ local function steal(fruit)
 	local fruitId = fruit:GetAttribute("FruitId") or ""
 
 	if not ownerUserId or not plantId then
-		warn("steal: fehlende Attribute (UserId/PlantId), blacklist")
+		warn("steal: fehlende Attribute, blacklist")
 		stealBlacklist[fruit] = true
 		return false
 	end
@@ -198,7 +236,6 @@ local function steal(fruit)
 		return false
 	end
 
-	-- Duration berechnen: exakt wie das Spiel, +0.1s Puffer
 	local duration = calculateStealDuration(fruit) + 0.1
 
 	local savedGravity = workspace.Gravity
@@ -214,7 +251,6 @@ local function steal(fruit)
 
 	local ok, err = pcall(function()
 		while fruit.Parent and fruit.Parent == prevPar do
-			-- Zeit abgelaufen → Fruit sollte jetzt gestohlen sein
 			if os.clock() - startTime >= duration then
 				success = true
 				break
@@ -224,7 +260,6 @@ local function steal(fruit)
 			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			task.wait()
 
-			-- Fruit verschwunden = erfolgreich gestohlen
 			if not fruit.Parent or fruit.Parent ~= prevPar then
 				success = true
 				break
@@ -235,6 +270,8 @@ local function steal(fruit)
 	conn:Disconnect()
 	char:PivotTo(oldPos)
 	workspace.Gravity = savedGravity
+
+	valueCache[fruit] = nil
 
 	if not ok then
 		warn("steal pcall error:", err)
@@ -350,18 +387,32 @@ local function getTargetFruit(t)
 	local garden = getTargetGarden(t)
 	if not garden then return end
 
-	for _, target in pairs(garden.Plants:GetChildren()) do
-		local fruits = target:FindFirstChild("Fruits")
-		if not fruits then continue end
-		for _, targetFruit in pairs(fruits:GetChildren()) do
-			if stealBlacklist[targetFruit] then continue end
-			local hp = targetFruit:FindFirstChild("HarvestPart")
-			if not hp then continue end
-			local pp = FindFirstDescendantOfClass(hp, "ProximityPrompt")
-			local age = targetFruit:GetAttribute("Age")
-			local maxAge = targetFruit:GetAttribute("MaxAge")
-			if pp and pp.Enabled and age and maxAge and age >= maxAge then
-				return targetFruit
+	if stealBest then
+		local best = nil
+		local bestValue = -1
+
+		for _, target in pairs(garden.Plants:GetChildren()) do
+			local fruits = target:FindFirstChild("Fruits")
+			if not fruits then continue end
+			for _, targetFruit in pairs(fruits:GetChildren()) do
+				if not isValidFruit(targetFruit) then continue end
+				local value = getFruitValue(targetFruit)  -- cached
+				if value > bestValue then
+					bestValue = value
+					best = targetFruit
+				end
+			end
+		end
+
+		return best
+	else
+		for _, target in pairs(garden.Plants:GetChildren()) do
+			local fruits = target:FindFirstChild("Fruits")
+			if not fruits then continue end
+			for _, targetFruit in pairs(fruits:GetChildren()) do
+				if isValidFruit(targetFruit) then
+					return targetFruit
+				end
 			end
 		end
 	end
@@ -401,6 +452,7 @@ task.spawn(function()
 					if not ok then
 						warn("steal (main loop) error:", err)
 						stealBlacklist[item] = true
+						valueCache[item] = nil
 					end
 					local ok2, err2 = pcall(goToSpawnAndComplete)
 					if not ok2 then warn("goToSpawnAndComplete error:", err2) end
@@ -462,13 +514,15 @@ seeds.ChildAdded:Connect(function(p)
 	if collectSeeds then addQueue(p, 2) end
 end)
 
--- UI
 local PlayerTab = Window:CreateTab("Player", 4483362458)
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
 local StealTab = Window:CreateTab("Steal", 4483362458)
 local StealMainSection = StealTab:CreateSection("Main")
 local PetTab = Window:CreateTab("Pets", 4483362458)
+local PetBuySection = PetTab:CreateSection("Auto Buy")
+local VisualTab = Window:CreateTab("Visual", 4483362458)
+local VisualEspSection = VisualTab:CreateSection("ESP")
 
 PlayerTab:CreateToggle({
 	Name = "Noclip",
@@ -496,10 +550,13 @@ PlayerTab:CreateSlider({
 })
 
 StealTab:CreateToggle({
-	Name = "Steal Best (WIP)",
+	Name = "Steal Best",
 	CurrentValue = stealBest,
 	Flag = "stealbesttoggled",
-	Callback = function(Value) stealBest = Value end,
+	Callback = function(Value)
+		stealBest = Value
+		valueCache = setmetatable({}, { __mode = "k" })
+	end,
 })
 
 local StealTargetSection = StealTab:CreateSection("Target")
@@ -512,7 +569,7 @@ local StealTargetSelect = StealTab:CreateDropdown({
 	Flag = nil,
 	Callback = function(Options)
 		stealTarget = Options[1]
-		stealBlacklist = setmetatable({}, { __mode = "k" })
+		resetStealState()
 	end,
 })
 
@@ -523,7 +580,7 @@ StealTab:CreateToggle({
 	Callback = function(Value)
 		stealTargetToggled = Value
 		if Value then
-			stealBlacklist = setmetatable({}, { __mode = "k" })
+			resetStealState()
 		end
 	end,
 })
