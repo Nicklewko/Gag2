@@ -912,6 +912,22 @@ VisualTab:CreateSlider({
 	Callback = function(Value) espMinValue = Value end,
 })
 
+local VisualPredictionSection = VisualTab:CreateSection("Predicts (TBA)")
+
+VisualTab:CreateToggle({
+	Name = "Predict Events",
+	CurrentValue = false,
+	Flag = "predictevents",
+	Callback = function(Value) end,
+})
+
+VisualTab:CreateToggle({
+	Name = "Predict Stocks",
+	CurrentValue = false,
+	Flag = "predictstocks",
+	Callback = function(Value) end,
+})
+
 StealTargetSelect:Refresh(getPlayerList())
 
 game.Players.PlayerAdded:Connect(function()
