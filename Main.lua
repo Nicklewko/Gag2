@@ -4,6 +4,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 
+local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
+
 local night = ReplicatedStorage.Night
 
 local player = game.Players.LocalPlayer
@@ -159,6 +161,16 @@ local function getPlayerList()
 		table.insert(pt, p.Name)
 	end
 	return pt
+end
+
+local function getSeedList()
+	local st = {}
+	for _, data in pairs(SeedData) do
+		local name = data.SeedName
+		if name and data.RestockShop then
+			table.insert(st, name)
+		end
+	end
 end
 
 local function getTargetGarden(t)
@@ -403,7 +415,7 @@ local AutoBuySelect = AutoTab:CreateDropdown({
 })
 
 StealTargetSelect:Refresh(getPlayerList())
-AutoBuySelect:Refresh(getPlayerList())
+AutoBuySelect:Refresh(getSeedList())
 
 game.Players.PlayerAdded:Connect(function()
 	StealTargetSelect:Refresh(getPlayerList())
