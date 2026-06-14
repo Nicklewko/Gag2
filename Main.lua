@@ -333,6 +333,9 @@ local function steal(fruit)
 	local prevPar = fruit.Parent
 	local startTime = os.clock()
 	
+	-- FIX: BeginSteal nur EINMAL aufrufen, um den Server-Timer nicht zu resetten!
+	Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
+	
 	local ok, err = pcall(function()
 		while fruit.Parent and fruit.Parent == prevPar do
 			if os.clock() - startTime >= duration then
@@ -342,7 +345,6 @@ local function steal(fruit)
 
 			noclipLoop()
 			fireproximityprompt(pp)
-			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			task.wait()
 
 			if not fruit.Parent or fruit.Parent ~= prevPar then
@@ -467,6 +469,17 @@ local function getTargetGarden(t)
 	return Gardens:FindFirstChild("Plot" .. pid)
 end
 
+local function isInGarden(t)
+	local p = game.Players:FindFirstChild(t)
+	if not p then return false end
+	return p:GetAttribute("IsInOwnGarden") == true
+end
+
+local function canSteal(t)
+	if not isInGarden(t) and night.Value then return true end
+	return false
+end
+
 local function getTargetFruit(t)
 	if stealBest then
 		local best = nil
@@ -474,7 +487,8 @@ local function getTargetFruit(t)
 
 		for i, plr in pairs(game.Players:GetChildren()) do
 			local garden = getTargetGarden(plr.Name)
-			if not garden or not canSteal(stealTarget) then continue end
+			-- FIX: Hier wurde canSteal(stealTarget) genutzt, was bei nil fehlgeschlagen ist. Es muss plr.Name sein.
+			if not garden or not canSteal(plr.Name) then continue end
 			for _, target in pairs(garden.Plants:GetChildren()) do
 				local fruits = target:FindFirstChild("Fruits")
 				if not fruits then continue end
@@ -511,18 +525,8 @@ local function maxInventory()
 	return current >= maxSize - 1
 end
 
-local function isInGarden(t)
-	local p = game.Players:FindFirstChild(t)
-	if not p then return false end
-	return p:GetAttribute("IsInOwnGarden") == true
-end
-
-local function canSteal(t)
-	if not isInGarden(t) and night.Value then return true end
-	return false
-end
-
 local function sellAll()
+	if not autoSell then return end -- FIX: Beendet Funktion, wenn der Schalter auf OFF ist
 	local invSize = player:GetAttribute("FruitCount")
 	if invSize and invSize >= autoSellInventorySize then
 		Networking.NPCS.SellAll:Fire()
@@ -592,9 +596,11 @@ task.spawn(function()
 			local pPlants = plot:FindFirstChild("Plants")
 			if pPlants and not maxInventory() then
 				for _, plant in pairs(pPlants:GetChildren()) do
+					if not autoCollect then break end -- FIX: Bricht ab, wenn Schalter deaktiviert wurde
 					local fruits = plant:FindFirstChild("Fruits")
 					if fruits then
 						for _, fruit in pairs(fruits:GetChildren()) do
+							if not autoCollect then break end -- FIX: Bricht ab, wenn Schalter deaktiviert wurde
 							local age = fruit:GetAttribute("Age") or 0
 							local maxAge = fruit:GetAttribute("MaxAge") or 1
 							if age >= maxAge then
@@ -780,7 +786,10 @@ AutoTab:CreateToggle({
 	Name = "Auto Sell",
 	CurrentValue = autoSell,
 	Flag = "autosell",
-	Callback = function(Value) autoSell = Value sellAll() end,
+	Callback = function(Value) 
+		autoSell = Value 
+		if autoSell then sellAll() end
+	end,
 })
 
 AutoTab:CreateSlider({
@@ -790,7 +799,10 @@ AutoTab:CreateSlider({
 	Suffix = "Fruits",
 	CurrentValue = autoSellInventorySize,
 	Flag = "autosellinventorysize",
-	Callback = function(Value) autoSellInventorySize = Value sellAll() end,
+	Callback = function(Value) 
+		autoSellInventorySize = Value 
+		if autoSell then sellAll() end
+	end,
 })
 
 AutoTab:CreateSection("Buying")
