@@ -74,29 +74,37 @@ end
 local function collect(p)
 	local char, root = getCharacter()
 	if not char or not char:FindFirstChild("Head") then return end
-
-	if not p or not p.Parent then
-		return
-	end
+	if not p or not p.Parent then return end
 
 	local prompt = FindFirstDescendantOfClass(p, "ProximityPrompt")
 	if not prompt then return end
-	
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
 	prompt.HoldDuration = 0
-	worspace.Gravity = 0
+	workspace.Gravity = 0
 
 	local oldPos = char:GetPivot()
-	local targetPos = p:IsA("Model") and p:GetPivot().Position or p.Position
+	local targetCF = CFrame.new(
+		(p:IsA("Model") and p:GetPivot().Position or p.Position) - Vector3.new(0, 4, 0)
+	)
+
+	local conn = RunService.Heartbeat:Connect(function()
+		hrp.CFrame = targetCF
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.AssemblyAngularVelocity = Vector3.zero
+	end)
 
 	while prompt.Parent do
-		char:PivotTo(CFrame.new(targetPos - Vector3.new(0, 4, 0)))
 		fireproximityprompt(prompt)
-        noclipLoop()
+		noclipLoop()
 		task.wait()
 	end
 
+	conn:Disconnect()
 	char:PivotTo(oldPos)
-	worspace.Gravity = 196.19
+	workspace.Gravity = 196.2
 end
 
 local function sortQueue()
@@ -149,7 +157,7 @@ local function getPlayerName(text)
 end
 
 local function getTargetGarden(t)
-	for _, plot in pairs(workspace.Gradens:GetChildren()) do
+	for _, plot in pairs(workspace.Gardens:GetChildren()) do
 		local nameTextLabel = plot.Signs.Garden.CorePart.SurfaceGui.Player.TextLabel
 		local n = getPlayerName(nameTextLabel.Text)
 		if n == t then
@@ -191,7 +199,7 @@ task.spawn(function()
 			print(i, v.t)
 		end
 
-		if stealTarget and stealTargetToggled and canSteal(stealTarget) then
+		if stealTarget and game.Players:FindFirstChild(stealTarget) and stealTargetToggled and canSteal(stealTarget) then
 			local item = getTargetFruit(stealTarget)
 				
 			if item and item.Parent then
@@ -204,12 +212,16 @@ task.spawn(function()
 				collect(item.m)
 			end
 		end
+		
+		task.wait()
+	end
+end)
 
+task.spawn(function()
+	while task.wait() do
 		if noclip then
 			noclipLoop()
 		end
-		
-		task.wait()
 	end
 end)
 
@@ -247,7 +259,7 @@ local StealTargetSelect = StealTab:CreateDropdown({
    Options = {},
    CurrentOption = {},
    MultipleOptions = false,
-   Flag = "stealtargetselection",
+   Flag = nil,
    Callback = function(Options)
 		stealTarget = Options[1]
    end,
