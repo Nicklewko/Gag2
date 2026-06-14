@@ -183,6 +183,8 @@ local function calculateStealDuration(fruit)
 	local age = fruit:GetAttribute("Age") or 1
 	local mutation = fruit:GetAttribute("Mutation")
 
+	if true then return 2 end
+
 	local sellValue = SellValueData[seedName]
 	if not sellValue then
 		warn("calculateStealDuration: kein SellValue für", seedName, "→ fallback 5s")
