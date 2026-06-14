@@ -91,6 +91,8 @@ local autoBuy = false
 local autoBuySelected = {}
 local autoBuyGear = false
 local autoBuySelectedGear = {}
+local autoBuyPets = false
+local autoBuySelectedPet = {}
 
 local autoCollect = false
 local collectMutation = false
@@ -224,7 +226,7 @@ local function getFruitValue(fruit)
 		return cached.v
 	end
 
-	local name = fruit:GetAttribute("CorePartName")
+	local name = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName")
 	if not name then return 0 end
 
 	local size = fruit:GetAttribute("SizeMultiplier") or 1
@@ -926,6 +928,24 @@ VisualTab:CreateToggle({
 	CurrentValue = false,
 	Flag = "predictstocks",
 	Callback = function(Value) end,
+})
+
+PetTab:CreateToggle({
+	Name = "Buy Pets",
+	CurrentValue = autoBuyPets,
+	Flag = "buypets",
+	Callback = function(Value) autoBuyPets = Value end,
+})
+
+local AutoBuyPetSelect = PetTab:CreateDropdown({
+	Name = "Select Pets",
+	Options = {},
+	CurrentOption = {},
+	MultipleOptions = true,
+	Flag = "autobuypetsselect",
+	Callback = function(Options)
+		autoBuySelectedPet = Options
+	end,
 })
 
 StealTargetSelect:Refresh(getPlayerList())
