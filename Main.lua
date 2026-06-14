@@ -18,6 +18,8 @@ local seeds = workspace.Map.SeedPackSpawnServerLocations
 
 local collectSeeds = false
 local collectDropped = false
+local autoSell = false
+local autoSellInventorySize = 100
 
 local noclip = false
 local walkSpeed = 16
@@ -320,6 +322,29 @@ local AutoCollectSeedsToggle = AutoTab:CreateToggle({
 			removeTier(2)
 		end
 	end,
+})
+
+local AutoSellSection = AutoTab:CreateSection("Selling (WIP)")
+
+local AutoSellToggle = AutoTab:CreateToggle({
+	Name = "Auto Sell",
+	CurrentValue = autoSell,
+	Flag = "autosell",
+	Callback = function(Value)
+		autoSell = Value
+	end,
+})
+
+local AutoSellSizeSlider = AutoTab:CreateSlider({
+   Name = "Sell at",
+   Range = {0, 100},
+   Increment = 1,
+   Suffix = "Fruits",
+   CurrentValue = autoSellInventorySize,
+   Flag = "autosellinventorysize",
+   Callback = function(Value)
+		autoSellInventorySize = Value
+   end,
 })
 
 StealTargetSelect:Refresh(getPlayerList())
