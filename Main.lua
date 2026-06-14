@@ -91,6 +91,7 @@ local autoBuy = false
 local autoBuySelected = {}
 local autoBuyGear = false
 local autoBuySelectedGear = {}
+local autoCollect = false
 local noclip = false
 local walkSpeed = 16
 local jumpHeight = 7.5
@@ -720,6 +721,15 @@ AutoTab:CreateDropdown({
 	MultipleOptions = true,
 	Flag = "autobuygearselected",
 	Callback = function(Options) autoBuySelectedGear = Options end,
+})
+
+AutoTab:CreateSection("Own")
+
+AutoTab:CreateToggle({
+	Name = "Auto Collect Fruits",
+	CurrentValue = autoCollect,
+	Flag = "autocollect",
+	Callback = function(Value) autoCollect = Value end,
 })
 
 StealTargetSelect:Refresh(getPlayerList())
