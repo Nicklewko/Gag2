@@ -182,14 +182,16 @@ local function steal(fruit)
 	local success = false
 	local att = 0
 
+	local prevPar = fruit.Parent
+
 	local ok, err = pcall(function()
-		while fruit.Parent and att < MAX_STEAL_ATT do
+		while fruit.Parent and fruit.Parent == prevPar and att < MAX_STEAL_ATT do
 			att += 1
 			noclipLoop()
 			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			task.wait()
 
-			if not fruit.Parent then
+			if not fruit.Parent or fruit.Parent ~= prevPar then
 				success = true
 				break
 			end
