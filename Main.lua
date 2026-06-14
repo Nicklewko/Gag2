@@ -72,6 +72,10 @@ end
 
 local function collect(p)
 	local char, root = getCharacter()
+	if not char or not char:FindFirstChild("Head") then return end
+	local head = character.Head
+	if not head then return end
+	head.Anchored = true
 
 	if not p or not p.Parent then
 		return
@@ -88,12 +92,11 @@ local function collect(p)
 	while prompt.Parent do
 		char:PivotTo(CFrame.new(targetPos - Vector3.new(0, 4, 0)))
 		fireproximityprompt(prompt)
-		root.AssemblyLinearVelocity = Vector3.zero
-		root.AssemblyAngularVelocity = Vector3.zero
-		NoclipLoop()
+		--NoclipLoop()
 		task.wait()
 	end
-	
+
+	head.Anchored = false
 	char:PivotTo(oldPos)
 end
 
