@@ -24,20 +24,16 @@ local noclip = false
 local stealTarget = nil
 local stealTargetToggled = false
 
-local oldPos = nil
-
 local queue = {}
 
 local Window = Rayfield:CreateWindow({
 	Name = "Gag2 Hub",
-	Icon = 0, 
+	Icon = 0,
 	LoadingTitle = "Gag2 Hub",
 	LoadingSubtitle = "tuff",
-	ShowText = "Rayfield", 
+	ShowText = "Rayfield",
 	Theme = "Amethyst",
-
-	ToggleUIKeybind = "K", 
-
+	ToggleUIKeybind = "K",
 	ConfigurationSaving = {
 		Enabled = true,
 		FolderName = nil,
@@ -56,7 +52,9 @@ local function noclipLoop()
 	local character = player.Character
 	if character ~= nil then
 		for _, child in pairs(character:GetDescendants()) do
-			if child:IsA("BasePart") and child.CanCollide == true then child.CanCollide = false end
+			if child:IsA("BasePart") and child.CanCollide == true then
+				child.CanCollide = false
+			end
 		end
 	end
 end
@@ -67,7 +65,6 @@ local function FindFirstDescendantOfClass(parent, className)
 			return obj
 		end
 	end
-
 	return nil
 end
 
@@ -83,6 +80,9 @@ local function collect(p)
 	if not hrp then return end
 
 	prompt.HoldDuration = 0
+
+	-- Fix #4: echten Gravity-Wert speichern
+	local savedGravity = workspace.Gravity
 	workspace.Gravity = 0
 
 	local oldPos = char:GetPivot()
@@ -91,9 +91,11 @@ local function collect(p)
 	)
 
 	local conn = RunService.Heartbeat:Connect(function()
-		hrp.CFrame = targetCF
-		hrp.AssemblyLinearVelocity = Vector3.zero
-		hrp.AssemblyAngularVelocity = Vector3.zero
+		if hrp and hrp.Parent then
+			hrp.CFrame = targetCF
+			hrp.AssemblyLinearVelocity = Vector3.zero
+			hrp.AssemblyAngularVelocity = Vector3.zero
+		end
 	end)
 
 	while prompt.Parent do
@@ -104,12 +106,13 @@ local function collect(p)
 
 	conn:Disconnect()
 	char:PivotTo(oldPos)
-	workspace.Gravity = 196.2
+	workspace.Gravity = savedGravity  -- Fix #4
 end
 
 local function sortQueue()
+	-- Fix #3: Tier 1 hat höchste Priorität → aufsteigend sortieren
 	table.sort(queue, function(a, b)
-		return a.t > b.t
+		return a.t < b.t
 	end)
 end
 
@@ -123,16 +126,9 @@ end
 
 local function addQueue(p, tier)
 	for _, v in ipairs(queue) do
-		if v.m == p then
-			return
-		end
+		if v.m == p then return end
 	end
-
-	table.insert(queue, {
-		m = p,
-		t = tier
-	})
-
+	table.insert(queue, { m = p, t = tier })
 	sortQueue()
 end
 
@@ -170,13 +166,14 @@ local function getTargetFruit(t)
 	local garden = getTargetGarden(t)
 	if not garden then return end
 
-	local plants = garden.Plants:GetChildren()
-
-	for _, target in pairs(plants) do
+	for _, target in pairs(garden.Plants:GetChildren()) do
 		local fruits = target:FindFirstChild("Fruits")
 		if not fruits then continue end
-		for _, targetFruit in pairs(fruits:GetChidren()) do
-			if targetFruit.HarvestPart and FindFirstDescendantOfClass(targetFruit.HarvestPart, "ProximityPrompt") then
+		-- Fix #1: GetChidren → GetChildren
+		-- Fix #2: HarvestPart via FindFirstChild
+		for _, targetFruit in pairs(fruits:GetChildren()) do
+			local hp = targetFruit:FindFirstChild("HarvestPart")
+			if hp and FindFirstDescendantOfClass(hp, "ProximityPrompt") then
 				return targetFruit
 			end
 		end
@@ -192,27 +189,26 @@ local function canSteal(t)
 		return true
 	end
 end
-		
+
 task.spawn(function()
 	while true do
-		for i, v in pairs(queue) do
-			print(i, v.t)
-		end
+		-- Fix #6: kein debug-print mehr
 
 		if stealTarget and game.Players:FindFirstChild(stealTarget) and stealTargetToggled and canSteal(stealTarget) then
 			local item = getTargetFruit(stealTarget)
-				
 			if item and item.Parent then
-				collect(item)
+				-- Fix #5: pcall schützt den Thread
+				local ok, err = pcall(collect, item)
+				if not ok then warn("collect (steal) error:", err) end
 			end
 		elseif #queue > 0 then
 			local item = table.remove(queue, 1)
-
 			if item and item.m and item.m.Parent then
-				collect(item.m)
+				local ok, err = pcall(collect, item.m)
+				if not ok then warn("collect (queue) error:", err) end
 			end
 		end
-		
+
 		task.wait()
 	end
 end)
@@ -238,10 +234,8 @@ seeds.ChildAdded:Connect(function(p)
 end)
 
 local PlayerTab = Window:CreateTab("Player", 4483362458)
-
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
-
 local StealTab = Window:CreateTab("Steal", 4483362458)
 local StealTargetSection = StealTab:CreateSection("Target")
 
@@ -255,14 +249,14 @@ local NoclipToggle = PlayerTab:CreateToggle({
 })
 
 local StealTargetSelect = StealTab:CreateDropdown({
-   Name = "Select Target",
-   Options = {},
-   CurrentOption = {},
-   MultipleOptions = false,
-   Flag = nil,
-   Callback = function(Options)
+	Name = "Select Target",
+	Options = {},
+	CurrentOption = {},
+	MultipleOptions = false,
+	Flag = nil,
+	Callback = function(Options)
 		stealTarget = Options[1]
-   end,
+	end,
 })
 
 local StealTargetToggled = StealTab:CreateToggle({
@@ -304,11 +298,11 @@ local AutoCollectSeedsToggle = AutoTab:CreateToggle({
 
 StealTargetSelect:Refresh(getPlayerList())
 
-game.Players.PlayerAdded:Connect(function(p)
+game.Players.PlayerAdded:Connect(function()
 	StealTargetSelect:Refresh(getPlayerList())
 end)
 
-game.Players.PlayerRemoving:Connect(function(p)
+game.Players.PlayerRemoving:Connect(function()
 	StealTargetSelect:Refresh(getPlayerList())
 end)
 
