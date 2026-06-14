@@ -1,6 +1,7 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
 
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
@@ -90,7 +91,23 @@ local autoBuy = false
 local autoBuySelected = {}
 local autoBuyGear = false
 local autoBuySelectedGear = {}
+
 local autoCollect = false
+local autoCollectMinValue = 0
+local autoCollectMaxValue = 1000000
+
+local espEnabled = false
+local espMinValue = 0
+local activeESPs = {}
+local espParent = pcall(function() return CoreGui.Name end) and CoreGui or player:WaitForChild("PlayerGui")
+
+if espParent:FindFirstChild("G2HFruitESP") then
+	espParent.G2HFruitESP:Destroy()
+end
+local espFolder = Instance.new("Folder")
+espFolder.Name = "G2HFruitESP"
+espFolder.Parent = espParent
+
 local noclip = false
 local walkSpeed = 16
 local jumpHeight = 7.5
@@ -117,12 +134,14 @@ local spawnPos = plot:WaitForChild("SpawnPoint")
 
 local queue = {}
 local stealBlacklist = setmetatable({}, { __mode = "k" })
+local stealBlacklistIds = {}
 
 local CACHE_TTL = 8
 local valueCache = setmetatable({}, { __mode = "k" })
 
 local function resetStealState()
 	stealBlacklist = setmetatable({}, { __mode = "k" })
+	stealBlacklistIds = {}
 	valueCache = setmetatable({}, { __mode = "k" })
 end
 
@@ -183,20 +202,19 @@ local function calculateStealDuration(fruit)
 	local age = fruit:GetAttribute("Age") or 1
 	local mutation = fruit:GetAttribute("Mutation")
 
-	if true then return 0 end
-
 	local sellValue = SellValueData[seedName]
 	if not sellValue then
 		warn("calculateStealDuration: kein SellValue für", seedName, "→ fallback 5s")
 		return 5
 	end
 
-	local v2 = math.floor(sellValue * age ^ 3)
+	local v2 = math.floor(sellValue * age)
 	if mutation and mutation ~= "" then
 		v2 = v2 * MutationData.ReturnPriceMultiplier(mutation)
 	end
 
-	return math.sqrt(v2)
+	local duration = math.sqrt(v2) * 0.05
+	return math.clamp(duration, 0.5, 5)
 end
 
 local function getFruitValue(fruit)
@@ -220,6 +238,9 @@ end
 
 local function isValidFruit(fruit)
 	if stealBlacklist[fruit] then return false end
+	local fId = fruit:GetAttribute("FruitId")
+	if fId and stealBlacklistIds[fId] then return false end
+
 	local hp = fruit:FindFirstChild("HarvestPart")
 	if not hp then return false end
 	local pp = FindFirstDescendantOfClass(hp, "ProximityPrompt")
@@ -270,7 +291,7 @@ local function collect(p, maxAtt)
 end
 
 local function steal(fruit)
-	if stealBlacklist[fruit] then return false end
+	if not isValidFruit(fruit) then return false end
 	if not fruit or not fruit.Parent then return false end
 
 	local ownerUserId = tonumber(fruit:GetAttribute("UserId"))
@@ -280,6 +301,7 @@ local function steal(fruit)
 	if not ownerUserId or not plantId then
 		warn("steal: fehlende Attribute, blacklist")
 		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
 		return false
 	end
 
@@ -293,10 +315,11 @@ local function steal(fruit)
 	if not hp then
 		warn("steal: kein HarvestPart, blacklist")
 		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
 		return false
 	end
 
-	local duration = calculateStealDuration(fruit) + 0.1
+	local duration = calculateStealDuration(fruit) + 0.5
 
 	local savedGravity = workspace.Gravity
 	workspace.Gravity = 0
@@ -309,8 +332,7 @@ local function steal(fruit)
 	local success = false
 	local prevPar = fruit.Parent
 	local startTime = os.clock()
-	print(duration)
-
+	
 	local ok, err = pcall(function()
 		while fruit.Parent and fruit.Parent == prevPar do
 			if os.clock() - startTime >= duration then
@@ -330,8 +352,6 @@ local function steal(fruit)
 		end
 	end)
 
-	warn("Finished")
-
 	conn:Disconnect()
 	char:PivotTo(oldPos)
 	workspace.Gravity = savedGravity
@@ -340,12 +360,14 @@ local function steal(fruit)
 	if not ok then
 		warn("steal pcall error:", err)
 		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
 		return false
 	end
 
 	if not success then
 		warn("steal: fehlgeschlagen, blacklist")
 		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
 	end
 
 	return success
@@ -380,9 +402,9 @@ local function goToSpawnAndComplete()
 	workspace.Gravity = savedGravity
 end
 
-local function sortQueue()
+local function sortQueue() 
 	table.sort(queue, function(a, b)
-		return a.t < b.t
+		return a.t > b.t
 	end)
 end
 
@@ -502,17 +524,19 @@ end
 
 task.spawn(function()
 	while true do
-		if stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget) and canSteal(stealTarget) then
+		if (stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget) and canSteal(stealTarget)) or stealBest then
 			if maxInventory() then
 				local ok, err = pcall(goToSpawnAndComplete)
 				if not ok then warn("goToSpawnAndComplete error:", err) end
 			else
 				local item = getTargetFruit(stealTarget)
 				if item and item.Parent then
+					local fruitId = item:GetAttribute("FruitId")
 					local ok, err = pcall(steal, item)
 					if not ok then
 						warn("steal (main loop) error:", err)
 						stealBlacklist[item] = true
+						if fruitId then stealBlacklistIds[fruitId] = true end
 						valueCache[item] = nil
 					end
 					local ok2, err2 = pcall(goToSpawnAndComplete)
@@ -562,6 +586,85 @@ task.spawn(function()
 				Networking.GearShop.PurchaseGear:Fire(name)
 			end
 		end
+			
+		if autoCollect and plot then
+			local pPlants = plot:FindFirstChild("Plants")
+			if pPlants and not maxInventory() then
+				for _, plant in pairs(pPlants:GetChildren()) do
+					local fruits = plant:FindFirstChild("Fruits")
+					if fruits then
+						for _, fruit in pairs(fruits:GetChildren()) do
+							local age = fruit:GetAttribute("Age") or 0
+							local maxAge = fruit:GetAttribute("MaxAge") or 1
+							if age >= maxAge then
+								local val = getFruitValue(fruit)
+								if val >= autoCollectMinValue and val <= autoCollectMaxValue then
+									local fId = fruit:GetAttribute("FruitId")
+									local pId = fruit:GetAttribute("PlantId")
+									if fId and pId then
+										Networking.Garden.CollectFruit:Fire(pId, fId)
+										task.wait(0.05)
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end)
+
+task.spawn(function()
+	while task.wait(0.5) do
+		for fruit, gui in pairs(activeESPs) do
+			if not espEnabled or not fruit or not fruit.Parent or getFruitValue(fruit) < espMinValue then
+				gui:Destroy()
+				activeESPs[fruit] = nil
+			end
+		end
+
+		if espEnabled then
+			for _, garden in pairs(Gardens:GetChildren()) do
+				local plants = garden:FindFirstChild("Plants")
+				if plants then
+					for _, plant in pairs(plants:GetChildren()) do
+						local fruits = plant:FindFirstChild("Fruits")
+						if fruits then
+							for _, fruit in pairs(fruits:GetChildren()) do
+								local val = getFruitValue(fruit)
+								if val >= espMinValue then
+									if not activeESPs[fruit] then
+										-- Erstelle das GUI einmalig
+										local bg = Instance.new("BillboardGui")
+										bg.Adornee = fruit:FindFirstChild("HarvestPart") or fruit
+										bg.Size = UDim2.new(0, 100, 0, 50)
+										bg.StudsOffset = Vector3.new(0, 2, 0)
+										bg.AlwaysOnTop = true
+										
+										local tl = Instance.new("TextLabel")
+										tl.Parent = bg
+										tl.Size = UDim2.new(1, 0, 1, 0)
+										tl.BackgroundTransparency = 1
+										tl.TextColor3 = Color3.new(0.3, 1, 0.3)
+										tl.TextStrokeTransparency = 0
+										tl.Text = "Val: " .. tostring(val)
+										tl.Font = Enum.Font.GothamBold
+										tl.TextSize = 14
+										
+										bg.Parent = espFolder
+										activeESPs[fruit] = bg
+									else
+										-- Update Wert, falls er sich ändert
+										activeESPs[fruit].TextLabel.Text = "Val: " .. tostring(val)
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
 	end
 end)
 
@@ -573,6 +676,7 @@ seeds.ChildAdded:Connect(function(p)
 	if collectSeeds then addQueue(p, 2) end
 end)
 
+-- Rayfield UI Setup --
 local PlayerTab = Window:CreateTab("Player", 4483362458)
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
@@ -727,10 +831,45 @@ AutoTab:CreateDropdown({
 AutoTab:CreateSection("Own")
 
 AutoTab:CreateToggle({
-	Name = "Auto Collect Fruits",
+	Name = "Auto Collect Own Fruits",
 	CurrentValue = autoCollect,
 	Flag = "autocollect",
 	Callback = function(Value) autoCollect = Value end,
+})
+
+AutoTab:CreateSlider({
+	Name = "Min Value",
+	Range = {0, 100000},
+	Increment = 10,
+	CurrentValue = autoCollectMinValue,
+	Flag = "autocollectmin",
+	Callback = function(Value) autoCollectMinValue = Value end,
+})
+
+AutoTab:CreateSlider({
+	Name = "Max Value",
+	Range = {0, 1000000},
+	Increment = 100,
+	CurrentValue = autoCollectMaxValue,
+	Flag = "autocollectmax",
+	Callback = function(Value) autoCollectMaxValue = Value end,
+})
+
+-- Visual ESP Section --
+VisualTab:CreateToggle({
+	Name = "Enable Fruit ESP",
+	CurrentValue = espEnabled,
+	Flag = "fruitesp",
+	Callback = function(Value) espEnabled = Value end,
+})
+
+VisualTab:CreateSlider({
+	Name = "ESP Min Value",
+	Range = {0, 50000},
+	Increment = 10,
+	CurrentValue = espMinValue,
+	Flag = "espminvalue",
+	Callback = function(Value) espMinValue = Value end,
 })
 
 StealTargetSelect:Refresh(getPlayerList())
