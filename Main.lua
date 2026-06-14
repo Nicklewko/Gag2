@@ -31,6 +31,8 @@ local walkSpeed = 16
 local jumpHeight = 7.5
 local stealTarget = nil
 local stealTargetToggled = false
+local antiSteal = false
+local stealBest = false
 
 local function waitForAttribute(inst, attr, timeout)
 	timeout = timeout or 30
@@ -424,7 +426,7 @@ local PlayerTab = Window:CreateTab("Player", 4483362458)
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoMainSection = AutoTab:CreateSection("Main")
 local StealTab = Window:CreateTab("Steal", 4483362458)
-local StealTargetSection = StealTab:CreateSection("Target")
+local StealMainSection = StealTab:CreateSection("Main")
 local PetTab = Window:CreateTab("Pets", 4483362458)
 
 PlayerTab:CreateToggle({
@@ -452,6 +454,17 @@ PlayerTab:CreateSlider({
 	Callback = function(Value) jumpHeight = Value end,
 })
 
+StealTab:CreateToggle({
+	Name = "Steal Best (WIP)",
+	CurrentValue = stealBest,
+	Flag = "stealbesttoggled",
+	Callback = function(Value)
+		stealBest = Value
+	end,
+})
+
+local StealTargetSection = StealTab:CreateSection("Target")
+
 local StealTargetSelect = StealTab:CreateDropdown({
 	Name = "Select Target",
 	Options = {},
@@ -473,6 +486,17 @@ StealTab:CreateToggle({
 		if Value then
 			stealBlacklist = setmetatable({}, { __mode = "k" })
 		end
+	end,
+})
+
+local StealAntiSection = StealTab:CreateSection("Anti")
+
+StealTab:CreateToggle({
+	Name = "Anti Steal (WIP)",
+	CurrentValue = antiSteal,
+	Flag = "antistealtoggled",
+	Callback = function(Value)
+		antiSteal = Value
 	end,
 })
 
