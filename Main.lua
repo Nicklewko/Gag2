@@ -180,7 +180,7 @@ local function isInGarden(t)
 	return gardenZoneData:FindFirstChild(t)
 end
 
-local function canSteal(t)
+local function cantSteal(t)
 	return isInGarden(t) or night.Value
 end
 		
@@ -190,7 +190,7 @@ task.spawn(function()
 			print(i, v.t)
 		end
 
-		if stealTarget and stealTargetToggled and not canSteal(stealTarget) then
+		if stealTarget and stealTargetToggled and not cantSteal(stealTarget) then
 			local item = getTargetFruit(stealTarget)
 				
 			if item and item.Parent then
