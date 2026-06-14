@@ -76,7 +76,7 @@ local function collect(p)
 	if not char or not char:FindFirstChild("Head") then return end
 	local head = char.Head
 	if not head then return end
-	head.Anchored = true
+	--head.Anchored = true
 
 	if not p or not p.Parent then
 		return
@@ -96,7 +96,7 @@ local function collect(p)
 		task.wait()
 	end
 
-	head.Anchored = false
+	--head.Anchored = false
 	char:PivotTo(oldPos)
 end
 
