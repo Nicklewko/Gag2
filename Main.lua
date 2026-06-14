@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
-local GearData = require(ReplicatedStorage.SharedModules.GearShopData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
 
 local MutationData
@@ -431,8 +430,8 @@ end
 
 local function getGearList()
 	local st = {}
-	for _, data in pairs(GearData) do
-		local name = data.ItemName
+	for _, data in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
+		local name = data.Name
 		if name then table.insert(st, name) end
 	end
 	return st
