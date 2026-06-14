@@ -74,9 +74,6 @@ end
 local function collect(p)
 	local char, root = getCharacter()
 	if not char or not char:FindFirstChild("Head") then return end
-	local head = char.Head
-	if not head then return end
-	--head.Anchored = true
 
 	if not p or not p.Parent then
 		return
@@ -86,6 +83,7 @@ local function collect(p)
 	if not prompt then return end
 	
 	prompt.HoldDuration = 0
+	worspace.Gravity = 0
 
 	local oldPos = char:GetPivot()
 	local targetPos = p:IsA("Model") and p:GetPivot().Position or p.Position
@@ -93,11 +91,12 @@ local function collect(p)
 	while prompt.Parent do
 		char:PivotTo(CFrame.new(targetPos - Vector3.new(0, 4, 0)))
 		fireproximityprompt(prompt)
+        noclipLoop()
 		task.wait()
 	end
 
-	--head.Anchored = false
 	char:PivotTo(oldPos)
+	worspace.Gravity = 196.19
 end
 
 local function sortQueue()
