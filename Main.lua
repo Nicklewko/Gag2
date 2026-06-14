@@ -93,6 +93,7 @@ local autoBuyGear = false
 local autoBuySelectedGear = {}
 
 local autoCollect = false
+local collectMutation = false
 local autoCollectMinValue = 0
 local autoCollectMaxValue = 1000000
 
@@ -596,14 +597,16 @@ task.spawn(function()
 			local pPlants = plot:FindFirstChild("Plants")
 			if pPlants and not maxInventory() then
 				for _, plant in pairs(pPlants:GetChildren()) do
-					if not autoCollect then break end -- FIX: Bricht ab, wenn Schalter deaktiviert wurde
+					if not autoCollect then break end
 					local fruits = plant:FindFirstChild("Fruits")
 					if fruits then
 						for _, fruit in pairs(fruits:GetChildren()) do
-							if not autoCollect then break end -- FIX: Bricht ab, wenn Schalter deaktiviert wurde
+							if not autoCollect then break end
 							local age = fruit:GetAttribute("Age") or 0
 							local maxAge = fruit:GetAttribute("MaxAge") or 1
-							if age >= maxAge then
+							local mutation = fruit:GetAttribute("Mutation")
+							local hasMutation = (mutation and mutation ~= "")
+							if age >= maxAge and (not collectMutation or hasMutation) then
 								local val = getFruitValue(fruit)
 								if val >= autoCollectMinValue and val <= autoCollectMaxValue then
 									local fId = fruit:GetAttribute("FruitId")
@@ -846,6 +849,13 @@ AutoTab:CreateToggle({
 	CurrentValue = autoCollect,
 	Flag = "autocollect",
 	Callback = function(Value) autoCollect = Value end,
+})
+
+AutoTab:CreateToggle({
+	Name = "Requires Mutation",
+	CurrentValue = collectMutation,
+	Flag = "collectmutation",
+	Callback = function(Value) collectMutation = Value end,
 })
 
 AutoTab:CreateSlider({
