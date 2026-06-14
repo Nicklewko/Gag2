@@ -74,7 +74,7 @@ end
 local function collect(p)
 	local char, root = getCharacter()
 	if not char or not char:FindFirstChild("Head") then return end
-	local head = character.Head
+	local head = char.Head
 	if not head then return end
 	head.Anchored = true
 
