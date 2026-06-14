@@ -130,7 +130,7 @@ local Window = Rayfield:CreateWindow({
 	Name = "Gag2 Hub",
 	Icon = 0,
 	LoadingTitle = "Gag2 Hub",
-	LoadingSubtitle = "tuff",
+	LoadingSubtitle = "By Someone",
 	ShowText = "Rayfield",
 	Theme = "Amethyst",
 	ToggleUIKeybind = "K",
@@ -446,28 +446,30 @@ local function getTargetGarden(t)
 end
 
 local function getTargetFruit(t)
-	local garden = getTargetGarden(t)
-	if not garden then return end
-
 	if stealBest then
 		local best = nil
 		local bestValue = -1
 
-		for _, target in pairs(garden.Plants:GetChildren()) do
-			local fruits = target:FindFirstChild("Fruits")
-			if not fruits then continue end
-			for _, targetFruit in pairs(fruits:GetChildren()) do
-				if not isValidFruit(targetFruit) then continue end
-				local value = getFruitValue(targetFruit)
-				if value > bestValue then
-					bestValue = value
-					best = targetFruit
+		for i, plr in pairs(game.Players:GetChildren()) do
+			local garden = getTargetGarden(plr.Name)
+			if not garden then continue end
+			for _, target in pairs(garden.Plants:GetChildren()) do
+				local fruits = target:FindFirstChild("Fruits")
+				if not fruits then continue end
+				for _, targetFruit in pairs(fruits:GetChildren()) do
+					if not isValidFruit(targetFruit) then continue end
+					local value = getFruitValue(targetFruit)
+					if value > bestValue then
+						bestValue = value
+						best = targetFruit
+					end
 				end
 			end
 		end
-
 		return best
 	else
+		local garden = getTargetGarden(t)
+		if not garden then return end
 		for _, target in pairs(garden.Plants:GetChildren()) do
 			local fruits = target:FindFirstChild("Fruits")
 			if not fruits then continue end
