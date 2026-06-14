@@ -6,35 +6,69 @@ local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 local GearData = require(ReplicatedStorage.SharedModules.GearShopData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
-local FruitValueCalc = require(ReplicatedStorage.SharedModules.FruitValueCalc)
-
--- Statt: local MutationData = require(ReplicatedStorage.SharedModules.MutationData)
 
 local MutationData
 do
-    local mutationMultipliers = {}
-    local mutationNames = {"Gold", "Rainbow", "Electric", "Frozen", "Bloodlit", "Chained", "Starstruck"}
-    local MutationDataFolder = ReplicatedStorage.SharedModules.MutationData
+	local mutationMultipliers = {}
+	local mutationNames = {"Gold", "Rainbow", "Electric", "Frozen", "Bloodlit", "Chained", "Starstruck"}
+	local MutationDataFolder = ReplicatedStorage.SharedModules.MutationData
 
-    for _, name in ipairs(mutationNames) do
-        local subModule = MutationDataFolder:FindFirstChild(name)
-        if subModule then
-            local ok, result = pcall(require, subModule)
-            if ok and result and result.PriceMultiplier then
-                mutationMultipliers[name] = result.PriceMultiplier
-            else
-                warn("MutationData: Sub-Modul", name, "fehlgeschlagen, Fallback 1x")
-                mutationMultipliers[name] = 1
-            end
-        end
-    end
+	for _, name in ipairs(mutationNames) do
+		local subModule = MutationDataFolder:FindFirstChild(name)
+		if subModule then
+			local ok, result = pcall(require, subModule)
+			if ok and result and result.PriceMultiplier then
+				mutationMultipliers[name] = result.PriceMultiplier
+			else
+				warn("MutationData: Sub-Modul", name, "fehlgeschlagen, Fallback 1x")
+				mutationMultipliers[name] = 1
+			end
+		end
+	end
 
-    MutationData = {
-        ReturnPriceMultiplier = function(mutation)
-            if not mutation or mutation == "" then return 1 end
-            return mutationMultipliers[mutation] or 1
-        end
-    }
+	MutationData = {
+		ReturnPriceMultiplier = function(mutation)
+			if not mutation or mutation == "" then return 1 end
+			return mutationMultipliers[mutation] or 1
+		end
+	}
+end
+
+local singleHarvestPlants = {}
+for _, data in SeedData do
+	if data.SeedName then
+		singleHarvestPlants[data.SeedName] = data.IsSingleHarvest == true
+	end
+end
+
+local SIZE_EXPONENT_OVERRIDES = { Mushroom = 1.9, Bamboo = 1.75 }
+local MIN_VALUES = { Carrot = 4 }
+
+local function calcFruitValue(fruitName, sizeMultiplier, mutation, playerInst, decayAlpha)
+	local exponent = SIZE_EXPONENT_OVERRIDES[fruitName] or 2.65
+	local sizeScore = (sizeMultiplier or 1) ^ exponent
+
+	local mutMult = 1
+	if mutation and mutation ~= "" then
+		local rawMult = MutationData.ReturnPriceMultiplier(mutation)
+		if singleHarvestPlants[fruitName] and rawMult > 1 then
+			mutMult = 1 + (rawMult - 1) * 0.25
+		else
+			mutMult = rawMult
+		end
+	end
+
+	local decayMult = 1
+	if typeof(decayAlpha) == "number" and decayAlpha > 0 then
+		decayMult = 1 - math.clamp(decayAlpha, 0, 1) * 0.8
+	end
+
+	local friendsMult = 1 + (playerInst:GetAttribute("Friends") or 0) * 0.1
+	local base = SellValueData[fruitName] or 0
+	local result = math.floor(base * sizeScore * mutMult * decayMult * friendsMult)
+
+	local minVal = MIN_VALUES[fruitName]
+	return minVal and math.max(result, minVal) or result
 end
 
 local night = ReplicatedStorage.Night
@@ -157,10 +191,7 @@ local function calculateStealDuration(fruit)
 
 	local v2 = math.floor(sellValue * age ^ 3)
 	if mutation and mutation ~= "" then
-		local ok, mult = pcall(MutationData.ReturnPriceMultiplier, mutation)
-		if ok and mult then
-			v2 = v2 * mult
-		end
+		v2 = v2 * MutationData.ReturnPriceMultiplier(mutation)
 	end
 
 	return math.sqrt(v2)
@@ -179,8 +210,7 @@ local function getFruitValue(fruit)
 	local mutation = fruit:GetAttribute("Mutation")
 	local decay = fruit:GetAttribute("DecayAlpha")
 
-	local ok, value = pcall(FruitValueCalc, name, size, mutation, player, decay)
-	local v = (ok and type(value) == "number") and value or 0
+	local v = calcFruitValue(name, size, mutation, player, decay)
 
 	valueCache[fruit] = { v = v, t = os.clock() }
 	return v
@@ -298,7 +328,6 @@ local function steal(fruit)
 	conn:Disconnect()
 	char:PivotTo(oldPos)
 	workspace.Gravity = savedGravity
-
 	valueCache[fruit] = nil
 
 	if not ok then
@@ -396,9 +425,7 @@ local function getGearList()
 	local st = {}
 	for _, data in pairs(GearData) do
 		local name = data.ItemName
-		if name then
-			table.insert(st, name)
-		end
+		if name then table.insert(st, name) end
 	end
 	return st
 end
@@ -424,7 +451,7 @@ local function getTargetFruit(t)
 			if not fruits then continue end
 			for _, targetFruit in pairs(fruits:GetChildren()) do
 				if not isValidFruit(targetFruit) then continue end
-				local value = getFruitValue(targetFruit)  -- cached
+				local value = getFruitValue(targetFruit)
 				if value > bestValue then
 					bestValue = value
 					best = targetFruit
@@ -460,9 +487,7 @@ local function isInGarden(t)
 end
 
 local function canSteal(t)
-	if not isInGarden(t) and night.Value then
-		return true
-	end
+	if not isInGarden(t) and night.Value then return true end
 	return false
 end
 
@@ -607,9 +632,7 @@ StealTab:CreateToggle({
 	Flag = "stealtargettoggled",
 	Callback = function(Value)
 		stealTargetToggled = Value
-		if Value then
-			resetStealState()
-		end
+		if Value then resetStealState() end
 	end,
 })
 
