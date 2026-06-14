@@ -15,7 +15,7 @@ local seeds = workspace.Map.SeedPackSpawnServerLocations
 
 local collectSeeds = false
 local collectDropped = false
-local movingConnection = nil
+local stealTarget = nil
 local oldPos = nil
 local queue = {}
 
@@ -42,14 +42,6 @@ Rayfield:Notify({
 	Duration = 5,
 	Image = 4483362458,
 })
-
-local PlayerTab = Window:CreateTab("Player", 4483362458)
-
-local AutoTab = Window:CreateTab("Auto", 4483362458)
-local AutoMainSection = AutoTab:CreateSection("Main")
-
-local StealTab = Window:CreateTab("Steal", 4483362458)
-local StealTargetSection = AutoTab:CreateSection("Target")
 
 local function NoclipLoop()
 	local character = player.Character
@@ -135,6 +127,14 @@ local function loopAdd(f, tier)
 	end
 end
 
+local function getPlayerList()
+	local pt = {}
+	for _, player in pairs(game.Players:GetChildren()) do
+		table.insert(pt, player.Name)
+	end
+	return pt
+end
+		
 task.spawn(function()
 	while true do
 		for i, v in pairs(queue) do
@@ -165,6 +165,25 @@ seeds.ChildAdded:Connect(function(p)
 	end
 end)
 
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+
+local AutoTab = Window:CreateTab("Auto", 4483362458)
+local AutoMainSection = AutoTab:CreateSection("Main")
+
+local StealTab = Window:CreateTab("Steal", 4483362458)
+local StealTargetSection = StealTab:CreateSection("Target")
+
+local StealTargetSelect = Tab:CreateDropdown({
+   Name = "Select Target",
+   Options = {},
+   CurrentOption = {},
+   MultipleOptions = false,
+   Flag = "stealtargetselection",
+   Callback = function(Options)
+		stealTarget = Options[1]
+   end,
+})
+
 local AutoCollectDroppedToggle = AutoTab:CreateToggle({
 	Name = "Collect Dropped Items",
 	CurrentValue = collectDropped,
@@ -192,5 +211,15 @@ local AutoCollectSeedsToggle = AutoTab:CreateToggle({
 		end
 	end,
 })
+
+StealTargetSelect:Refresh(getPlayerList())
+
+game.Players.PlayerAdded:Connect(function(p)
+	StealTargetSelect:Refresh(getPlayerList())
+end)
+
+game.Players.PlayerRemoving:Connect(function(p)
+	StealTargetSelect:Refresh(getPlayerList())
+end)
 
 Rayfield:LoadConfiguration()
