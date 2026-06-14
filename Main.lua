@@ -633,6 +633,23 @@ task.spawn(function()
 								end
 							end
 						end
+					else
+						fruit = plant
+						local age = fruit:GetAttribute("Age") or 0
+						local maxAge = fruit:GetAttribute("MaxAge") or 1
+						local mutation = fruit:GetAttribute("Mutation")
+						local hasMutation = (mutation and mutation ~= "")
+						if age >= maxAge and (not collectMutation or hasMutation) then
+							local val = getFruitValue(fruit)
+							if val >= autoCollectMinValue and val <= autoCollectMaxValue then
+								local fId = fruit:GetAttribute("FruitId")
+								local pId = fruit:GetAttribute("PlantId")
+								if fId and pId then
+									Networking.Garden.CollectFruit:Fire(pId, fId)
+									task.wait(0.05)
+								end
+							end
+						end
 					end
 				end
 			end
