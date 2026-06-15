@@ -128,6 +128,7 @@ local stealTarget            = nil
 local stealTargetToggled     = false
 local antiSteal              = false
 local stealBest              = false
+local autoFlingTarget        = false
 -- Fling
 local flingEnabled           = false
 local flingTarget            = nil
@@ -815,6 +816,10 @@ StealTab:CreateToggle({ Name="Steal Best", CurrentValue=stealBest, Flag="stealbe
 		stealBest  = v
 		valueCache = setmetatable({}, {__mode="k"})
 		bestCache  = nil
+	end })
+StealTab:CreateToggle({ Name="Auto Fling Target", CurrentValue=stealBest, Flag="autoflingtarget",
+	Callback=function(v)
+		autoFlingTarget  = v
 	end })
 
 StealTab:CreateSection("Target")
