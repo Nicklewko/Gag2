@@ -410,8 +410,8 @@ local function steal(fruit)
 		stealBlacklistIds[fruitId] = true
 		return false
 	end
-	pp.HoldDuration    = 0
-	local duration     = calculateStealDuration(fruit)
+	local duration     = pp.HoldDuration
+	--pp.HoldDuration    = 0
 	local savedGravity = workspace.Gravity
 	workspace.Gravity  = 0
 	local oldPos  = char:GetPivot()
@@ -420,19 +420,8 @@ local function steal(fruit)
 	local prevPar = fruit.Parent
 	local startT  = os.clock()
 	local ok, err = pcall(function()
-		while fruit.Parent and fruit.Parent == prevPar do
-			if os.clock() - startT >= duration then
-				success = true
-				break
-			end
-			noclipLoop()
-			fireproximityprompt(pp)
-			task.wait()
-			if not fruit.Parent or fruit.Parent ~= prevPar then
-				success = true
-				break
-			end
-		end
+		fireproximityprompt(pp, duration + 0.1)
+		task.wait(duration + 0.1)
 	end)
 	conn:Disconnect()
 	char:PivotTo(oldPos)
@@ -560,7 +549,6 @@ local function getTargetFruit(t)
 					end
 				else
 					if isValidFruit(target) then
-						if true then continue end -- gotta add later
 						local v = getFruitValue(target)
 						if v > bestV then bestV = v; best = target end
 					end
@@ -580,7 +568,7 @@ local function getTargetFruit(t)
 					if isValidFruit(tf) then return tf end
 				end
 			else
-				--if isValidFruit(target) then return target end
+				if isValidFruit(target) then return target end
 			end
 		end
 	end
@@ -646,7 +634,7 @@ task.spawn(function()
 						valueCache[item] = nil
 					end
 				else
-					task.wait(0.5)
+					task.wait()
 				end
 			end
 		elseif #queue > 0 then
@@ -699,7 +687,7 @@ task.spawn(function()
 							local pId = fruit:GetAttribute("PlantId")
 							if fId and pId then
 								Networking.Garden.CollectFruit:Fire(pId, fId)
-								task.wait(0.3)
+								task.wait(0.03)
 							end
 						end
 					end
@@ -716,7 +704,7 @@ task.spawn(function()
 						local pId = fruit:GetAttribute("PlantId")
 						if pId then
 							Networking.Garden.CollectFruit:Fire(pId, "")
-							task.wait(0.3)
+							task.wait(0.03)
 						end
 					end
 				end
