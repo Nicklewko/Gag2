@@ -37,7 +37,6 @@ do
 	}
 end
 
--- FruitValueCalc: originale Logik inline, MutationData durch lokale Version ersetzt
 local FruitValueCalc
 do
 	local fv1 = FastFlags.Replicated("Game.Selling.SizeMultiplier", Asserts.FinitePositive, 1)
@@ -68,7 +67,6 @@ do
 	local fv12 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.KneeMultipliers", Asserts.Map(Asserts.String, Asserts.FinitePositive), kneeMultipliers)
 	local fv13 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.TailExponentMultipliers", Asserts.Map(Asserts.String, Asserts.FinitePositive), tailExponentMultipliers)
 
-	-- Identisch zum Original, nur MutationData → lokale Version
 	FruitValueCalc = function(p1, p2, p3, p4, p5)
 		local v22 = fv4:Get()[p1] or fv3:Get()
 		local v32 = p2 ^ v22
@@ -225,9 +223,7 @@ local function moveTo(hrp, targetCF)
 end
 
 local function calculateStealDuration(fruit)
-	if true then return 0.6 end
-
-	local seedName = fruit:GetAttribute("CorePartName") or "Carrot"
+	local seedName = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName") or "Carrot"
 	local age = fruit:GetAttribute("Age") or 1
 	local mutation = fruit:GetAttribute("Mutation")
 	local sellValue = SellValueData[seedName]
