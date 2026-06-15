@@ -557,11 +557,11 @@ player:GetAttributeChangedSignal("FruitCount"):Connect(sellAll)
 
 local function buySeeds(name, amt)
 	if not autoBuy or not table.find(autoBuySelected, name) then return end
-	for i = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name) task.wait() end
+	for i = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name) task.wait(.05) end
 end
 local function buyGear(name, amt)
 	if not autoBuyGear or not table.find(autoBuySelectedGear, name) then return end
-	for i = 1, amt do Networking.GearShop.PurchaseGear:Fire(name) task.wait() end
+	for i = 1, amt do Networking.GearShop.PurchaseGear:Fire(name) task.wait(.05) end
 end
 
 for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
