@@ -1,6 +1,3 @@
---Add: esp formatting numbers. (ex.: 1234 = 1.23k, 100000 = 100k, 1000000 = 1M)
---Add: 
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -410,8 +407,11 @@ local function steal(fruit)
 		stealBlacklistIds[fruitId] = true
 		return false
 	end
+	
+	-- Dauer so gelassen, wie du es wolltest
 	local duration     = pp.HoldDuration
-	--pp.HoldDuration    = 0
+	--pp.HoldDuration  = 0
+	
 	local savedGravity = workspace.Gravity
 	workspace.Gravity  = 0
 	local oldPos  = char:GetPivot()
@@ -419,15 +419,19 @@ local function steal(fruit)
 	local success = false
 	local prevPar = fruit.Parent
 	local startT  = os.clock()
+	
 	local ok, err = pcall(function()
 		fireproximityprompt(pp, duration + 0.1)
 		task.wait(duration + 0.1)
+		success = true -- BUGFIX: Ohne diese Zeile war success immer false!
 	end)
+	
 	conn:Disconnect()
 	char:PivotTo(oldPos)
 	workspace.Gravity = savedGravity
 	valueCache[fruit] = nil
 	ppCache[fruit]    = nil
+	
 	if not ok then
 		warn("steal pcall error:", err)
 		stealBlacklist[fruit] = true
@@ -611,7 +615,9 @@ task.spawn(function()
 			and stealTarget ~= nil
 			and game.Players:FindFirstChild(stealTarget) ~= nil
 			and canSteal(stealTarget)
-		local isStealActive = stealTargetActive or stealBest
+			
+		-- BUGFIX: Vorher hat stealBest am Tag das Stehlen getriggert, was zum endlosen Teleporten führte!
+		local isStealActive = stealTargetActive or (stealBest and night.Value == true)
 
 		if isStealActive then
 			if maxInventory() then
@@ -623,6 +629,8 @@ task.spawn(function()
 				if item and item.Parent then
 					local fruitId = item:GetAttribute("FruitId")
 					local ok, result = pcall(steal, item)
+					
+					-- Da result in steal() durch unseren Bugfix jetzt "true" zurückgibt, wird dieser Block nun korrekt ausgeführt.
 					if ok and result == true then
 						local ok2, err2 = pcall(goToSpawnAndComplete)
 						if not ok2 then warn("goToSpawnAndComplete error:", err2) end
@@ -634,7 +642,7 @@ task.spawn(function()
 						valueCache[item] = nil
 					end
 				else
-					task.wait()
+					task.wait(0.5)
 				end
 			end
 		elseif #queue > 0 then
@@ -713,6 +721,19 @@ task.spawn(function()
 	end
 end)
 
+-- ZAHLENFORMATIERUNG FÜR ESP HINZUGEFÜGT
+local function formatNumber(n)
+	if not n then return "0" end
+	if n >= 1000000 then
+		-- Ersetzt ".00M" durch "M" falls es eine glatte Million ist
+		return string.format("%.2fM", n / 1000000):gsub("%.00M", "M")
+	elseif n >= 1000 then
+		return string.format("%.2fk", n / 1000):gsub("%.00k", "k")
+	else
+		return tostring(math.floor(n))
+	end
+end
+
 -- ESP
 local function createEsp(fruit)
 	local val = getFruitValue(fruit)
@@ -730,7 +751,7 @@ local function createEsp(fruit)
 		tl.BackgroundTransparency = 1
 		tl.TextColor3         = Color3.new(0.3, 1, 0.3)
 		tl.TextStrokeTransparency = 0
-		tl.Text               = "Val: " .. tostring(val)
+		tl.Text               = "Val: " .. formatNumber(val) -- Formatierung genutzt
 		tl.Font               = Enum.Font.GothamBold
 		tl.TextSize           = 14
 		bg.Parent             = espFolder
@@ -740,7 +761,7 @@ local function createEsp(fruit)
 		if activeESPValues[fruit] ~= val then
 			activeESPValues[fruit] = val
 			local tl = activeESPs[fruit]:FindFirstChild("ValueLabel")
-			if tl then tl.Text = "Val: " .. tostring(val) end
+			if tl then tl.Text = "Val: " .. formatNumber(val) end -- Formatierung genutzt
 		end
 	end
 end
