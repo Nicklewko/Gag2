@@ -227,7 +227,49 @@ end
 local Window = Rayfield:CreateWindow({
 	Name = "Astro Hub", Icon = 0,
 	LoadingTitle = "Astro Hub", LoadingSubtitle = "By Someone",
-	ShowText = "Rayfield", Theme = "Ocean", ToggleUIKeybind = "K",
+	ShowText = "Rayfield",
+	Theme = {
+	TextColor = Color3.fromRGB(255, 255, 255),
+
+	Background = Color3.fromRGB(10, 10, 10),
+	Topbar = Color3.fromRGB(18, 18, 18),
+	Shadow = Color3.fromRGB(0, 0, 0),
+
+	NotificationBackground = Color3.fromRGB(15, 15, 15),
+	NotificationActionsBackground = Color3.fromRGB(240, 240, 240),
+
+	TabBackground = Color3.fromRGB(25, 25, 25),
+	TabStroke = Color3.fromRGB(45, 45, 45),
+	TabBackgroundSelected = Color3.fromRGB(245, 245, 245),
+	TabTextColor = Color3.fromRGB(200, 200, 200),
+	SelectedTabTextColor = Color3.fromRGB(15, 15, 15),
+
+	ElementBackground = Color3.fromRGB(20, 20, 20),
+	ElementBackgroundHover = Color3.fromRGB(30, 30, 30),
+	SecondaryElementBackground = Color3.fromRGB(14, 14, 14),
+	ElementStroke = Color3.fromRGB(45, 45, 45),
+	SecondaryElementStroke = Color3.fromRGB(35, 35, 35),
+
+	SliderBackground = Color3.fromRGB(255, 255, 255),
+	SliderProgress = Color3.fromRGB(220, 220, 220),
+	SliderStroke = Color3.fromRGB(180, 180, 180),
+
+	ToggleBackground = Color3.fromRGB(20, 20, 20),
+	ToggleEnabled = Color3.fromRGB(255, 255, 255),
+	ToggleDisabled = Color3.fromRGB(60, 60, 60),
+	ToggleEnabledStroke = Color3.fromRGB(220, 220, 220),
+	ToggleDisabledStroke = Color3.fromRGB(90, 90, 90),
+	ToggleEnabledOuterStroke = Color3.fromRGB(140, 140, 140),
+	ToggleDisabledOuterStroke = Color3.fromRGB(40, 40, 40),
+
+	DropdownSelected = Color3.fromRGB(40, 40, 40),
+	DropdownUnselected = Color3.fromRGB(20, 20, 20),
+
+	InputBackground = Color3.fromRGB(18, 18, 18),
+	InputStroke = Color3.fromRGB(55, 55, 55),
+	PlaceholderColor = Color3.fromRGB(140, 140, 140)
+	}, 
+	ToggleUIKeybind = "K",
 	ConfigurationSaving = { Enabled = true, FolderName = nil, FileName = "g2h" },
 })
 Rayfield:Notify({ Title = "Loading...", Content = "Please wait.", Duration = 5, Image = 4483362458 })
