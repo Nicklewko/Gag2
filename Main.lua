@@ -6,8 +6,6 @@ local CoreGui = game:GetService("CoreGui")
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
-local FastFlags = require(ReplicatedStorage.UserGenerated.FastFlags)
-local Asserts = require(ReplicatedStorage.UserGenerated.Lang.Asserts)
 
 local MutationData
 do
@@ -30,49 +28,88 @@ end
 
 local FruitValueCalc
 do
-	local fv1  = FastFlags.Replicated("Game.Selling.SizeMultiplier", Asserts.FinitePositive, 1)
-	local fv2  = FastFlags.Replicated("Game.Selling.MutationMultiplier", Asserts.FinitePositive, 1)
-	local fv3  = FastFlags.Replicated("Game.Selling.SizeExponent", Asserts.FinitePositive, 2.65)
-	local fv4  = FastFlags.Replicated("Game.Selling.SizeExponentOverrides", Asserts.Map(Asserts.String, Asserts.FinitePositive), {Mushroom=1.9, Bamboo=1.75})
-	local fv5  = FastFlags.Replicated("Game.Selling.SingleHarvestMutationBonusScale", Asserts.FiniteNonNegative, 0.15)
-	local fv6  = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.Enabled", Asserts.Boolean, true)
-	local fv7  = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.Knee", Asserts.FinitePositive, 5)
-	local fv8  = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.TailExponent", Asserts.FinitePositive, 1.5)
-	local sh, km, tm = {}, {}, {}
-	local minV = { Carrot = 4 }
-	for _, d in SeedData do
+	local SIZE_EXP_DEFAULT   = 2.65
+	local SIZE_EXP_OVERRIDES = { Mushroom = 1.9, Bamboo = 1.75 }
+	local SINGLE_HARVEST_SCALE = 0.15
+	local DR_ENABLED  = true
+	local DR_KNEE     = 5
+	local DR_TAIL     = 1.5
+	local MIN_VALUES  = { Carrot = 4 }
+
+	local singleHarvest = {}
+	for _, d in pairs(SeedData) do
 		if d.SeedName then
-			sh[d.SeedName]  = d.IsSingleHarvest == true
-			km[d.SeedName]  = 1
-			tm[d.SeedName]  = 1
+			singleHarvest[d.SeedName] = d.IsSingleHarvest == true
 		end
 	end
-	local fv12 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.KneeMultipliers", Asserts.Map(Asserts.String, Asserts.FinitePositive), km)
-	local fv13 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.TailExponentMultipliers", Asserts.Map(Asserts.String, Asserts.FinitePositive), tm)
 
-	FruitValueCalc = function(p1, p2, p3, p4, p5)
-		local exp = fv4:Get()[p1] or fv3:Get()
-		local sz  = p2 ^ exp
-		if fv6:Get() then
-			local knee = fv7:Get() * (fv12:Get()[p1] or 1)
-			if knee < p2 then
-				sz = knee ^ exp * (p2/knee) ^ math.min(fv8:Get() * (fv13:Get()[p1] or 1), exp)
+	FruitValueCalc = function(fruitName, sizeMultiplier, mutation, playerInst, decayAlpha)
+		sizeMultiplier = sizeMultiplier or 1
+		local exp = SIZE_EXP_OVERRIDES[fruitName] or SIZE_EXP_DEFAULT
+
+		-- DiminishingReturns
+		local sz
+		if DR_ENABLED and DR_KNEE < sizeMultiplier then
+			sz = DR_KNEE ^ exp * (sizeMultiplier / DR_KNEE) ^ math.min(DR_TAIL, exp)
+		else
+			sz = sizeMultiplier ^ exp
+		end
+
+		-- Mutation
+		local mm = 1
+		if mutation and mutation ~= "" then
+			local rm = MutationData.ReturnPriceMultiplier(mutation)
+			if singleHarvest[fruitName] and rm > 1 then
+				mm = 1 + (rm - 1) * SINGLE_HARVEST_SCALE
+			else
+				mm = rm
 			end
 		end
-		local mm
-		if p3 then
-			local rm  = MutationData.ReturnPriceMultiplier(p3)
-			local rm2 = if sh[p1] and rm > 1 then 1 + (rm-1)*fv5:Get() else rm
-			mm = rm2 * fv2:Get()
-		else
-			mm = 1
+
+		-- Decay
+		local dm = 1
+		if type(decayAlpha) == "number" and decayAlpha > 0 then
+			dm = 1 - math.clamp(decayAlpha, 0, 1) * 0.8
 		end
-		local dm  = if typeof(p5)=="number" and p5>0 then 1-math.clamp(p5,0,1)*0.8 else 1
-		local fm  = 1 + (p4:GetAttribute("Friends") or 0) * 0.1
-		local res = math.floor((SellValueData[p1] or 0) * sz * fv1:Get() * mm * dm * fm)
-		local mv  = minV[p1]
-		return if mv then (if res < mv then mv else res) else res
+
+		local fm  = 1 + (playerInst:GetAttribute("Friends") or 0) * 0.1
+		local res = math.floor((SellValueData[fruitName] or 0) * sz * mm * dm * fm)
+		local mv  = MIN_VALUES[fruitName]
+		if mv then
+			return math.max(res, mv)
+		end
+		return res
 	end
+end
+
+local function getFruitSizeMultiplier(fruit)
+	local v = fruit:GetAttribute("SizeMulti")
+	if v and type(v) == "number" and v > 0 then return v end
+
+	v = fruit:GetAttribute("Scale")
+	if v and type(v) == "number" and v > 0 then return v end
+
+	v = fruit:GetAttribute("GrowthScale")
+	if v and type(v) == "number" and v > 0 then return v end
+
+	v = fruit:GetAttribute("FruitScale")
+	if v and type(v) == "number" and v > 0 then return v end
+
+	if fruit:IsA("Model") then
+		local ok, s = pcall(function() return fruit:GetScale() end)
+		if ok and type(s) == "number" and s > 0 and math.abs(s - 1) > 0.001 then
+			return s
+		end
+	end
+
+	local pp = fruit:IsA("Model") and fruit.PrimaryPart
+	if pp then
+		local size = pp.Size
+		local avgSize = (size.X + size.Y + size.Z) / 3
+		if avgSize > 0.1 then return avgSize end
+	end
+
+	return 1
 end
 
 local night  = ReplicatedStorage.Night
@@ -87,95 +124,100 @@ end
 local dropped = workspace.DroppedItems
 local seeds   = workspace.Map.SeedPackSpawnServerLocations
 
-local collectSeeds, collectDropped          = false, false
-local autoSell                              = false
-local autoSellInventorySize                 = 100
-local autoBuy,     autoBuySelected          = false, {}
-local autoBuyGear, autoBuySelectedGear      = false, {}
-local autoBuyPets, autoBuySelectedPet       = false, {}
-local autoCollect, collectMutation          = false, false
-local autoCollectMinValue, autoCollectMaxValue = 0, 1000000
-local espEnabled, espMinValue               = false, 0
-local activeESPs        = {}
-local activeESPValues   = {}   -- fruit → last shown value; skip TextLabel update if unchanged
-local noclip            = false
-local walkSpeed, jumpHeight = 16, 7.5
-local stealTarget, stealTargetToggled = nil, false
-local antiSteal, stealBest = false, false
+local collectSeeds    = false
+local collectDropped  = false
+local autoSell        = false
+local autoSellInventorySize = 100
+local autoBuy         = false
+local autoBuySelected = {}
+local autoBuyGear     = false
+local autoBuySelectedGear = {}
+local autoBuyPets     = false
+local autoBuySelectedPet = {}
+local autoCollect     = false
+local collectMutation = false
+local autoCollectMinValue = 0
+local autoCollectMaxValue = 1000000
+local espEnabled      = false
+local espMinValue     = 0
+local activeESPs      = {}
+local activeESPValues = {}
+local noclip          = false
+local walkSpeed       = 16
+local jumpHeight      = 7.5
+local stealTarget     = nil
+local stealTargetToggled = false
+local antiSteal       = false
+local stealBest       = false
 
-local espParent = pcall(function() return CoreGui.Name end) and CoreGui or player:WaitForChild("PlayerGui")
+local espParent
+local ok_cg = pcall(function() return CoreGui.Name end)
+if ok_cg then
+	espParent = CoreGui
+else
+	espParent = player:WaitForChild("PlayerGui")
+end
 if espParent:FindFirstChild("G2HFruitESP") then espParent.G2HFruitESP:Destroy() end
 local espFolder = Instance.new("Folder")
-espFolder.Name = "G2HFruitESP"
+espFolder.Name   = "G2HFruitESP"
 espFolder.Parent = espParent
 
 local function waitForAttribute(inst, attr, timeout)
 	timeout = timeout or 30
-	local t0, v = tick(), inst:GetAttribute(attr)
-	while v == nil and tick()-t0 < timeout do task.wait(0.5); v = inst:GetAttribute(attr) end
+	local t0 = tick()
+	local v = inst:GetAttribute(attr)
+	while v == nil and tick() - t0 < timeout do
+		task.wait(0.5)
+		v = inst:GetAttribute(attr)
+	end
 	return v
 end
 
-local Gardens = workspace:WaitForChild("Gardens")
-local plotId  = waitForAttribute(player, "PlotId")
-local plot    = Gardens:WaitForChild("Plot"..tostring(plotId))
+local Gardens  = workspace:WaitForChild("Gardens")
+local plotId   = waitForAttribute(player, "PlotId")
+local plot     = Gardens:WaitForChild("Plot" .. tostring(plotId))
 local spawnPos = plot:WaitForChild("SpawnPoint")
 
-local queue            = {}
-local stealBlacklist   = setmetatable({}, {__mode="k"})
+local queue             = {}
+local stealBlacklist    = setmetatable({}, {__mode = "k"})
 local stealBlacklistIds = {}
-local CACHE_TTL        = 8
-local valueCache       = setmetatable({}, {__mode="k"})
-
--- Opt 1: ProximityPrompt-Cache — verhindert FindFirstDescendantOfClass in jedem Scan
--- Weak keys: Entry wird GC'd wenn fruit verschwindet
-local ppCache = setmetatable({}, {__mode="k"})  -- fruit → {hp, pp}
-
-local function getFruitHpPp(fruit)
-	local c = ppCache[fruit]
-	if c and c.hp.Parent and c.pp.Parent then return c.hp, c.pp end
-	local hp = fruit:FindFirstChild("HarvestPart")
-	if not hp then return nil, nil end
-	local pp
-	for _, obj in ipairs(hp:GetDescendants()) do
-		if obj.ClassName == "ProximityPrompt" then pp = obj; break end
-	end
-	if pp then ppCache[fruit] = {hp=hp, pp=pp} end
-	return hp, pp
-end
-
--- Opt 2: stealBest Scan-Cache — kein vollständiger Garten-Scan bei jedem Loop-Tick
-local bestCache, bestCacheT = nil, 0
-local BEST_TTL = 1.5
+local CACHE_TTL         = 8
+local valueCache        = setmetatable({}, {__mode = "k"})
+local ppCache           = setmetatable({}, {__mode = "k"})
+local bestCache         = nil
+local bestCacheT        = 0
+local BEST_TTL          = 1.5
 
 local function resetStealState()
-	stealBlacklist    = setmetatable({}, {__mode="k"})
+	stealBlacklist    = setmetatable({}, {__mode = "k"})
 	stealBlacklistIds = {}
-	valueCache        = setmetatable({}, {__mode="k"})
-	ppCache           = setmetatable({}, {__mode="k"})
-	bestCache, bestCacheT = nil, 0
+	valueCache        = setmetatable({}, {__mode = "k"})
+	ppCache           = setmetatable({}, {__mode = "k"})
+	bestCache         = nil
+	bestCacheT        = 0
 end
 
--- Opt 3: Noclip parts cache — kein GetDescendants() + IsA jedes Frame
+-- Noclip cache
 local noclipParts = {}
-local noclipChar  = nil
 
 local function rebuildNoclipCache(char)
-	noclipChar  = char
 	noclipParts = {}
 	if not char then return end
 	for _, d in pairs(char:GetDescendants()) do
-		if d:IsA("BasePart") then noclipParts[#noclipParts+1] = d end
+		if d:IsA("BasePart") then
+			noclipParts[#noclipParts + 1] = d
+		end
 	end
 	char.DescendantAdded:Connect(function(d)
-		if d:IsA("BasePart") then noclipParts[#noclipParts+1] = d end
+		if d:IsA("BasePart") then
+			noclipParts[#noclipParts + 1] = d
+		end
 	end)
 end
 player.CharacterAdded:Connect(rebuildNoclipCache)
 if player.Character then rebuildNoclipCache(player.Character) end
 
 local function noclipLoop()
-	-- Opt 3: ipairs auf gecachter Liste statt GetDescendants() + IsA jedes Frame
 	for i = 1, #noclipParts do
 		local p = noclipParts[i]
 		if p.Parent and p.CanCollide then p.CanCollide = false end
@@ -188,7 +230,6 @@ local Window = Rayfield:CreateWindow({
 	ShowText = "Rayfield", Theme = "Amethyst", ToggleUIKeybind = "K",
 	ConfigurationSaving = { Enabled = true, FolderName = nil, FileName = "g2h" },
 })
-
 Rayfield:Notify({ Title = "Loading...", Content = "Please wait.", Duration = 5, Image = 4483362458 })
 
 local function moveTo(hrp, targetCF)
@@ -201,6 +242,19 @@ local function moveTo(hrp, targetCF)
 	end)
 end
 
+local function getFruitHpPp(fruit)
+	local c = ppCache[fruit]
+	if c and c.hp.Parent and c.pp.Parent then return c.hp, c.pp end
+	local hp = fruit:FindFirstChild("HarvestPart")
+	if not hp then return nil, nil end
+	local pp = nil
+	for _, obj in ipairs(hp:GetDescendants()) do
+		if obj.ClassName == "ProximityPrompt" then pp = obj; break end
+	end
+	if pp then ppCache[fruit] = {hp = hp, pp = pp} end
+	return hp, pp
+end
+
 local function calculateStealDuration(fruit)
 	local seedName = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName") or "Carrot"
 	local age      = fruit:GetAttribute("Age") or 1
@@ -208,21 +262,28 @@ local function calculateStealDuration(fruit)
 	local sellVal  = SellValueData[seedName]
 	if not sellVal then return 5 end
 	local v = math.floor(sellVal * age)
-	if mutation and mutation ~= "" then v = v * MutationData.ReturnPriceMultiplier(mutation) end
+	if mutation and mutation ~= "" then
+		v = v * MutationData.ReturnPriceMultiplier(mutation)
+	end
 	return math.clamp(math.sqrt(v) * 0.05, 0.5, 5)
 end
 
 local function getFruitValue(fruit)
 	local c = valueCache[fruit]
-	if c and os.clock()-c.t < CACHE_TTL then return c.v end
+	if c and os.clock() - c.t < CACHE_TTL then return c.v end
+
 	local name = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName")
 	if not name then return 0 end
-	local size     = fruit:GetAttribute("SizeMultiplier") or fruit:GetAttribute("Scale") or 1
+
+	-- Fix: korrekte Größe lesen statt immer 1
+	local size     = getFruitSizeMultiplier(fruit)
 	local mutation = fruit:GetAttribute("Mutation")
 	local decay    = fruit:GetAttribute("DecayAlpha")
+
 	local ok, v = pcall(FruitValueCalc, name, size, mutation, player, decay)
-	v = (ok and type(v)=="number") and v or 0
-	valueCache[fruit] = {v=v, t=os.clock()}
+	if not ok or type(v) ~= "number" then v = 0 end
+
+	valueCache[fruit] = {v = v, t = os.clock()}
 	return v
 end
 
@@ -230,10 +291,10 @@ local function isValidFruit(fruit)
 	if stealBlacklist[fruit] then return false end
 	local fId = fruit:GetAttribute("FruitId")
 	if fId and stealBlacklistIds[fId] then return false end
-	-- Opt 1: ppCache statt FindFirstDescendantOfClass
 	local hp, pp = getFruitHpPp(fruit)
 	if not hp or not pp or not pp.Enabled then return false end
-	local age, maxAge = fruit:GetAttribute("Age"), fruit:GetAttribute("MaxAge")
+	local age    = fruit:GetAttribute("Age")
+	local maxAge = fruit:GetAttribute("MaxAge")
 	return age ~= nil and maxAge ~= nil and age >= maxAge
 end
 
@@ -241,8 +302,7 @@ local function collect(p, maxAtt)
 	local char = getCharacter()
 	if not char or not char:FindFirstChild("Head") then return end
 	if not p or not p.Parent then return end
-	local hp, prompt = getFruitHpPp(p)
-	-- fallback für nicht-Fruit (DroppedItems/Seeds haben kein HarvestPart)
+	local _, prompt = getFruitHpPp(p)
 	if not prompt then
 		for _, obj in ipairs(p:GetDescendants()) do
 			if obj.ClassName == "ProximityPrompt" then prompt = obj; break end
@@ -255,13 +315,14 @@ local function collect(p, maxAtt)
 	local savedGravity = workspace.Gravity
 	workspace.Gravity  = 0
 	local oldPos   = char:GetPivot()
-	local targetCF = CFrame.new((p:IsA("Model") and p:GetPivot().Position or p.Position) - Vector3.new(0,4,0))
+	local pos      = p:IsA("Model") and p:GetPivot().Position or p.Position
+	local targetCF = CFrame.new(pos - Vector3.new(0, 4, 0))
 	local conn     = moveTo(hrp, targetCF)
 	local att      = 0
 	local ok, err  = pcall(function()
 		while prompt.Parent do
 			if maxAtt and att >= maxAtt then break end
-			att += 1
+			att = att + 1
 			fireproximityprompt(prompt)
 			noclipLoop()
 			task.wait()
@@ -279,36 +340,42 @@ local function steal(fruit)
 	local plantId     = fruit:GetAttribute("PlantId")
 	local fruitId     = fruit:GetAttribute("FruitId") or ""
 	if not ownerUserId or not plantId then
-		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true; return false
+		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
+		return false
 	end
 	local char = getCharacter()
 	if not char then return false end
 	local hrp = char:FindFirstChild("HumanoidRootPart")
 	if not hrp then return false end
-	-- Opt 1: ppCache
 	local hp, pp = getFruitHpPp(fruit)
 	if not hp or not pp then
-		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true; return false
+		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
+		return false
 	end
-	pp.HoldDuration = 0
+	pp.HoldDuration    = 0
 	local duration     = calculateStealDuration(fruit) + 0.5
 	local savedGravity = workspace.Gravity
 	workspace.Gravity  = 0
-	local oldPos   = char:GetPivot()
-	local targetCF = CFrame.new(hp.Position)
-	local conn     = moveTo(hrp, targetCF)
-	local success  = false
-	local prevPar  = fruit.Parent
-	local startT   = os.clock()
-	local ok, err  = pcall(function()
+	local oldPos  = char:GetPivot()
+	local conn    = moveTo(hrp, CFrame.new(hp.Position))
+	local success = false
+	local prevPar = fruit.Parent
+	local startT  = os.clock()
+	local ok, err = pcall(function()
 		while fruit.Parent and fruit.Parent == prevPar do
-			if os.clock()-startT >= duration then success = true; break end
+			if os.clock() - startT >= duration then
+				success = true
+				break
+			end
 			noclipLoop()
-			-- Opt 6: kein redundantes BeginSteal:Fire; fireproximityprompt triggert
-			-- PromptTriggered → BeginSteal + CompleteSteal (HoldDuration=0)
 			fireproximityprompt(pp)
 			task.wait()
-			if not fruit.Parent or fruit.Parent ~= prevPar then success = true; break end
+			if not fruit.Parent or fruit.Parent ~= prevPar then
+				success = true
+				break
+			end
 		end
 	end)
 	conn:Disconnect()
@@ -318,11 +385,14 @@ local function steal(fruit)
 	ppCache[fruit]    = nil
 	if not ok then
 		warn("steal pcall error:", err)
-		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true; return false
+		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
+		return false
 	end
 	if not success then
 		warn("steal: fehlgeschlagen, blacklist")
-		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true
+		stealBlacklist[fruit] = true
+		stealBlacklistIds[fruitId] = true
 	end
 	return success
 end
@@ -340,7 +410,8 @@ local function goToSpawnAndComplete()
 	elseif spawnPos:IsA("Model") then
 		targetCF = spawnPos:GetPivot()
 	else
-		workspace.Gravity = savedGravity; return
+		workspace.Gravity = savedGravity
+		return
 	end
 	local conn = moveTo(hrp, targetCF)
 	task.wait()
@@ -351,14 +422,19 @@ local function goToSpawnAndComplete()
 end
 
 local function sortQueue()
-	table.sort(queue, function(a,b) return a.t < b.t end)
+	table.sort(queue, function(a, b) return a.t < b.t end)
 end
 local function removeTier(tier)
-	for i = #queue, 1, -1 do if queue[i].t == tier then table.remove(queue,i) end end
+	for i = #queue, 1, -1 do
+		if queue[i].t == tier then table.remove(queue, i) end
+	end
 end
 local function addQueue(p, tier)
-	for _, v in ipairs(queue) do if v.m == p then return end end
-	table.insert(queue, {m=p, t=tier}); sortQueue()
+	for _, v in ipairs(queue) do
+		if v.m == p then return end
+	end
+	table.insert(queue, {m = p, t = tier})
+	sortQueue()
 end
 local function loopAdd(f, tier)
 	for _, item in pairs(f:GetChildren()) do addQueue(item, tier) end
@@ -367,21 +443,27 @@ end
 local function getPlayerList()
 	local pt = {}
 	for _, p in pairs(game.Players:GetPlayers()) do
-		if p ~= player then pt[#pt+1] = p.Name end
+		if p ~= player then pt[#pt + 1] = p.Name end
 	end
 	return pt
 end
 local function getSeedList()
 	local st = {}
 	for _, d in pairs(SeedData) do
-		if d.SeedName and d.RestockShop then st[#st+1] = d.SeedName end
+		if d.SeedName and d.RestockShop then st[#st + 1] = d.SeedName end
 	end
 	return st
 end
 local function getGearList()
-	local st, ok, items = {}
-	ok, items = pcall(function() return ReplicatedStorage.StockValues.GearShop.Items:GetChildren() end)
-	if ok and items then for _, d in pairs(items) do if d.Name then st[#st+1] = d.Name end end end
+	local st = {}
+	local ok, items = pcall(function()
+		return ReplicatedStorage.StockValues.GearShop.Items:GetChildren()
+	end)
+	if ok and items then
+		for _, d in pairs(items) do
+			if d.Name then st[#st + 1] = d.Name end
+		end
+	end
 	return st
 end
 
@@ -390,25 +472,26 @@ local function getTargetGarden(t)
 	if not tp then return end
 	local pid = tp:GetAttribute("PlotId")
 	if not pid then return end
-	return Gardens:FindFirstChild("Plot"..pid)
+	return Gardens:FindFirstChild("Plot" .. pid)
 end
 local function isInGarden(t)
 	local p = game.Players:FindFirstChild(t)
 	return p and p:GetAttribute("IsInOwnGarden") == true
 end
 local function canSteal(t)
-	return not isInGarden(t) and night.Value
+	return not isInGarden(t) and night.Value == true
 end
 
 local function getTargetFruit(t)
 	if stealBest then
-		-- Opt 2: cached result, kein vollständiger Scan jedes Loop-Tick
-		if bestCache and bestCache.Parent and os.clock()-bestCacheT < BEST_TTL and isValidFruit(bestCache) then
+		if bestCache and bestCache.Parent and os.clock() - bestCacheT < BEST_TTL and isValidFruit(bestCache) then
 			return bestCache
 		end
-		local best, bestV = nil, -1
+		local best  = nil
+		local bestV = -1
 		for _, plr in pairs(game.Players:GetChildren()) do
-			if plr == player or not canSteal(plr.Name) then continue end
+			if plr == player then continue end
+			if not canSteal(plr.Name) then continue end
 			local garden = getTargetGarden(plr.Name)
 			if not garden then continue end
 			for _, target in pairs(garden.Plants:GetChildren()) do
@@ -427,7 +510,8 @@ local function getTargetFruit(t)
 				end
 			end
 		end
-		bestCache, bestCacheT = best, os.clock()
+		bestCache  = best
+		bestCacheT = os.clock()
 		return best
 	else
 		local garden = getTargetGarden(t)
@@ -461,11 +545,11 @@ player:GetAttributeChangedSignal("FruitCount"):Connect(sellAll)
 
 local function buySeeds(name, amt)
 	if not autoBuy or not table.find(autoBuySelected, name) then return end
-	for i = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name) end
+	for i = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name) task.wait() end
 end
 local function buyGear(name, amt)
 	if not autoBuyGear or not table.find(autoBuySelectedGear, name) then return end
-	for i = 1, amt do Networking.GearShop.PurchaseGear:Fire(name) end
+	for i = 1, amt do Networking.GearShop.PurchaseGear:Fire(name) task.wait() end
 end
 
 for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
@@ -478,7 +562,12 @@ end
 -- Steal/Queue Loop
 task.spawn(function()
 	while true do
-		local isStealActive = (stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget) and canSteal(stealTarget)) or stealBest
+		local stealTargetActive = stealTargetToggled
+			and stealTarget ~= nil
+			and game.Players:FindFirstChild(stealTarget) ~= nil
+			and canSteal(stealTarget)
+		local isStealActive = stealTargetActive or stealBest
+
 		if isStealActive then
 			if maxInventory() then
 				local ok, err = pcall(goToSpawnAndComplete)
@@ -488,14 +577,13 @@ task.spawn(function()
 				local item = getTargetFruit(stealTarget)
 				if item and item.Parent then
 					local fruitId = item:GetAttribute("FruitId")
-					local ok, err = pcall(steal, item)
-					if ok and err == true then  -- steal returned true = success
-						-- Opt 7: goToSpawnAndComplete nur bei Erfolg
+					local ok, result = pcall(steal, item)
+					if ok and result == true then
 						local ok2, err2 = pcall(goToSpawnAndComplete)
 						if not ok2 then warn("goToSpawnAndComplete error:", err2) end
-						bestCache = nil  -- Cache invalidieren nach erfolgreichem Steal
+						bestCache = nil
 					elseif not ok then
-						warn("steal (main loop) error:", err)
+						warn("steal (main loop) error:", result)
 						stealBlacklist[item] = true
 						if fruitId then stealBlacklistIds[fruitId] = true end
 						valueCache[item] = nil
@@ -515,19 +603,22 @@ task.spawn(function()
 	end
 end)
 
--- Utility Loop: noclip + walkspeed
+-- Utility Loop
 task.spawn(function()
 	while task.wait() do
 		if noclip then noclipLoop() end
 		local char = player.Character
 		if char then
 			local hum = char:FindFirstChild("Humanoid")
-			if hum then hum.WalkSpeed = walkSpeed; hum.JumpHeight = jumpHeight end
+			if hum then
+				hum.WalkSpeed  = walkSpeed
+				hum.JumpHeight = jumpHeight
+			end
 		end
 	end
 end)
 
--- Opt 4: AutoCollect in eigenem Loop mit 0.3s Throttle statt jedes Frame
+-- AutoCollect Loop
 task.spawn(function()
 	while true do
 		task.wait(0.3)
@@ -543,7 +634,8 @@ task.spawn(function()
 					local age    = fruit:GetAttribute("Age") or 0
 					local maxAge = fruit:GetAttribute("MaxAge") or 1
 					local mut    = fruit:GetAttribute("Mutation")
-					if age >= maxAge and (not collectMutation or (mut and mut ~= "")) then
+					local hasMut = mut and mut ~= ""
+					if age >= maxAge and (not collectMutation or hasMut) then
 						local val = getFruitValue(fruit)
 						if val >= autoCollectMinValue and val <= autoCollectMaxValue then
 							local fId = fruit:GetAttribute("FruitId")
@@ -560,7 +652,8 @@ task.spawn(function()
 				local age    = fruit:GetAttribute("Age") or 0
 				local maxAge = fruit:GetAttribute("MaxAge") or 1
 				local mut    = fruit:GetAttribute("Mutation")
-				if age >= maxAge and (not collectMutation or (mut and mut ~= "")) then
+				local hasMut = mut and mut ~= ""
+				if age >= maxAge and (not collectMutation or hasMut) then
 					local val = getFruitValue(fruit)
 					if val >= autoCollectMinValue and val <= autoCollectMaxValue then
 						local pId = fruit:GetAttribute("PlantId")
@@ -581,29 +674,28 @@ local function createEsp(fruit)
 	if val < espMinValue then return end
 	if not activeESPs[fruit] then
 		local bg = Instance.new("BillboardGui")
-		bg.Adornee    = fruit:FindFirstChild("HarvestPart") or fruit
-		bg.Size       = UDim2.new(0, 100, 0, 50)
+		bg.Adornee     = fruit:FindFirstChild("HarvestPart") or fruit
+		bg.Size        = UDim2.new(0, 100, 0, 50)
 		bg.StudsOffset = Vector3.new(0, 2, 0)
 		bg.AlwaysOnTop = true
 		local tl = Instance.new("TextLabel")
 		tl.Name               = "ValueLabel"
 		tl.Parent             = bg
-		tl.Size               = UDim2.new(1,0,1,0)
+		tl.Size               = UDim2.new(1, 0, 1, 0)
 		tl.BackgroundTransparency = 1
 		tl.TextColor3         = Color3.new(0.3, 1, 0.3)
 		tl.TextStrokeTransparency = 0
-		tl.Text               = "Val: "..tostring(val)
+		tl.Text               = "Val: " .. tostring(val)
 		tl.Font               = Enum.Font.GothamBold
 		tl.TextSize           = 14
 		bg.Parent             = espFolder
 		activeESPs[fruit]     = bg
 		activeESPValues[fruit] = val
 	else
-		-- Opt 5: TextLabel nur updaten wenn sich Wert geändert hat
 		if activeESPValues[fruit] ~= val then
 			activeESPValues[fruit] = val
 			local tl = activeESPs[fruit]:FindFirstChild("ValueLabel")
-			if tl then tl.Text = "Val: "..tostring(val) end
+			if tl then tl.Text = "Val: " .. tostring(val) end
 		end
 	end
 end
@@ -613,12 +705,12 @@ task.spawn(function()
 		local toRemove = {}
 		for fruit in pairs(activeESPs) do
 			if not espEnabled or not fruit or not fruit.Parent or getFruitValue(fruit) < espMinValue then
-				toRemove[#toRemove+1] = fruit
+				toRemove[#toRemove + 1] = fruit
 			end
 		end
 		for _, fruit in ipairs(toRemove) do
 			if activeESPs[fruit] then activeESPs[fruit]:Destroy() end
-			activeESPs[fruit] = nil
+			activeESPs[fruit]      = nil
 			activeESPValues[fruit] = nil
 		end
 		if not espEnabled then continue end
@@ -637,18 +729,18 @@ task.spawn(function()
 	end
 end)
 
-dropped.ChildAdded:Connect(function(p) if collectDropped then addQueue(p,1) end end)
-seeds.ChildAdded:Connect(function(p)   if collectSeeds   then addQueue(p,2) end end)
+dropped.ChildAdded:Connect(function(p) if collectDropped then addQueue(p, 1) end end)
+seeds.ChildAdded:Connect(function(p)   if collectSeeds   then addQueue(p, 2) end end)
 
 -- UI
-local PlayerTab   = Window:CreateTab("Player",  4483362458)
-local AutoTab     = Window:CreateTab("Auto",    4483362458)
-local AutoMainSection = AutoTab:CreateSection("Main")
-local StealTab    = Window:CreateTab("Steal",   4483362458)
+local PlayerTab        = Window:CreateTab("Player",  4483362458)
+local AutoTab          = Window:CreateTab("Auto",    4483362458)
+local AutoMainSection  = AutoTab:CreateSection("Main")
+local StealTab         = Window:CreateTab("Steal",   4483362458)
 local StealMainSection = StealTab:CreateSection("Main")
-local PetTab      = Window:CreateTab("Pets",    4483362458)
-local PetBuySection = PetTab:CreateSection("Auto Buy")
-local VisualTab   = Window:CreateTab("Visual",  4483362458)
+local PetTab           = Window:CreateTab("Pets",    4483362458)
+local PetBuySection    = PetTab:CreateSection("Auto Buy")
+local VisualTab        = Window:CreateTab("Visual",  4483362458)
 local VisualEspSection = VisualTab:CreateSection("ESP")
 
 PlayerTab:CreateToggle({ Name="Noclip", CurrentValue=noclip, Flag="noclip",
@@ -659,7 +751,11 @@ PlayerTab:CreateSlider({ Name="Jump Height", Range={0,50}, Increment=0.5,
 	CurrentValue=jumpHeight, Flag="jumpheightslider", Callback=function(v) jumpHeight=v end })
 
 StealTab:CreateToggle({ Name="Steal Best", CurrentValue=stealBest, Flag="stealbesttoggled",
-	Callback=function(v) stealBest=v; valueCache=setmetatable({},{__mode="k"}); bestCache=nil end })
+	Callback=function(v)
+		stealBest  = v
+		valueCache = setmetatable({}, {__mode="k"})
+		bestCache  = nil
+	end })
 
 local StealTargetSection = StealTab:CreateSection("Target")
 local StealTargetSelect  = StealTab:CreateDropdown({
@@ -689,7 +785,7 @@ AutoTab:CreateDropdown({ Name="Select Seeds", Options=getSeedList(), CurrentOpti
 	MultipleOptions=true, Flag="autobuyselected", Callback=function(o) autoBuySelected=o end })
 AutoTab:CreateToggle({ Name="Auto Buy Seeds", CurrentValue=autoBuy, Flag="autobuyseeds",
 	Callback=function(v)
-		autoBuy=v
+		autoBuy = v
 		if v then
 			for _, i in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
 				buySeeds(i.Name, i.Value)
@@ -700,7 +796,7 @@ AutoTab:CreateDropdown({ Name="Select Gear", Options=getGearList(), CurrentOptio
 	MultipleOptions=true, Flag="autobuygearselected", Callback=function(o) autoBuySelectedGear=o end })
 AutoTab:CreateToggle({ Name="Auto Buy Gear", CurrentValue=autoBuyGear, Flag="autobuygear",
 	Callback=function(v)
-		autoBuyGear=v
+		autoBuyGear = v
 		if v then
 			for _, i in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
 				buyGear(i.Name, i.Value)
@@ -725,7 +821,7 @@ VisualTab:CreateToggle({ Name="Enable Fruit ESP", CurrentValue=espEnabled, Flag=
 VisualTab:CreateSlider({ Name="ESP Min Value", Range={0,50000}, Increment=10,
 	CurrentValue=espMinValue, Flag="espminvalue", Callback=function(v) espMinValue=v end })
 
-local VisualPredictionSection = VisualTab:CreateSection("Predictions (TBA)")
+local VisualPredSection = VisualTab:CreateSection("Predictions (TBA)")
 VisualTab:CreateToggle({ Name="Predict Events", CurrentValue=false, Flag="predictevents",
 	Callback=function() end })
 VisualTab:CreateToggle({ Name="Predict Stocks", CurrentValue=false, Flag="predictstocks",
