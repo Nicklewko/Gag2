@@ -374,7 +374,7 @@ local function steal(fruit, owner)
 	local success      = false
 
 	local ok, err = pcall(function()
-		task.wait(pp.HoldDuration)
+		task.wait(pp.HoldDuration + 0.15)
 		
 		pp.HoldDuration = 0
 		noclipLoop()
@@ -386,7 +386,12 @@ local function steal(fruit, owner)
 			Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId)
 			noclipLoop()
 			task.wait()
-		until att >= 5 or not pp.Parent
+		until att >= 3 or not pp.Parent
+
+		if att >= 3 then
+			stealBlacklist[fruit]      = true
+			stealBlacklistIds[fruitId] = true
+		end
 
 		success = true
 	end)
@@ -402,10 +407,6 @@ local function steal(fruit, owner)
 		stealBlacklist[fruit]      = true
 		stealBlacklistIds[fruitId] = true
 		return false
-	end
-	if not success then
-		stealBlacklist[fruit]      = true
-		stealBlacklistIds[fruitId] = true
 	end
 	return success
 end
