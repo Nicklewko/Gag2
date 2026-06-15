@@ -225,9 +225,9 @@ local function noclipLoop()
 end
 
 local Window = Rayfield:CreateWindow({
-	Name = "Gag2 Hub", Icon = 0,
-	LoadingTitle = "Gag2 Hub", LoadingSubtitle = "By Someone",
-	ShowText = "Rayfield", Theme = "Amethyst", ToggleUIKeybind = "K",
+	Name = "Astro Hub", Icon = 0,
+	LoadingTitle = "Astro Hub", LoadingSubtitle = "By Someone",
+	ShowText = "Rayfield", Theme = "Ocean", ToggleUIKeybind = "K",
 	ConfigurationSaving = { Enabled = true, FolderName = nil, FileName = "g2h" },
 })
 Rayfield:Notify({ Title = "Loading...", Content = "Please wait.", Duration = 5, Image = 4483362458 })
@@ -277,7 +277,7 @@ local function calculateStealDuration(fruit)
 		end
 	end
 	
-	return math.sqrt(v) * 0.05
+	return 0.4, math.sqrt(v) * 0.05
 end
 
 local function getFruitValue(fruit)
