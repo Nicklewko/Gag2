@@ -6,11 +6,10 @@ local CoreGui = game:GetService("CoreGui")
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
--- FastFlags + Asserts sind gecacht → kein Crash
+
 local FastFlags = require(ReplicatedStorage.UserGenerated.FastFlags)
 local Asserts = require(ReplicatedStorage.UserGenerated.Lang.Asserts)
 
--- MutationData: Sub-Module direkt requiren (kein FastFlags-Crash)
 local MutationData
 do
 	local mutationMultipliers = {}
@@ -591,16 +590,15 @@ local function buyGear(name, amt)
 	end
 end
 
--- Fix: v.:GetAttributeChangedSignal → v:GetAttributeChangedSignal
 for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
-	v:GetAttributeChangedSignal("Value"):Connect(function()
-		buyGear(v.Name, v:GetAttribute("Value") or 0)
+	v:GetPropertyChangedSignal("Value"):Connect(function()
+		buyGear(v.Name, v.Value)
 	end)
 end
 
 for _, v in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
-	v:GetAttributeChangedSignal("Value"):Connect(function()
-		buySeeds(v.Name, v:GetAttribute("Value") or 0)
+	v:GetPropertyChangedSignal("Value"):Connect(function()
+		buySeeds(v.Name, v.Value)
 	end)
 end
 
