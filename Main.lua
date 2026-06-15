@@ -163,7 +163,7 @@ end
 local Gardens  = workspace:WaitForChild("Gardens")
 local plotId   = waitForAttribute(player, "PlotId")
 local plot     = Gardens:WaitForChild("Plot" .. tostring(plotId))
-local spawnPos = plot:WaitForChild("SpawnPoint")
+local spawnPos = plot:WaitForChild("PlotSizeReference")
 
 -- ============================================================
 -- CACHE / STATE
@@ -386,12 +386,7 @@ local function steal(fruit, owner)
 			Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId)
 			noclipLoop()
 			task.wait()
-		until att >= 3 or not pp.Parent
-
-		if att >= 3 then
-			stealBlacklist[fruit]      = true
-			stealBlacklistIds[fruitId] = true
-		end
+		until att >= 1 or not pp.Parent
 
 		success = true
 	end)
@@ -407,6 +402,10 @@ local function steal(fruit, owner)
 		stealBlacklist[fruit]      = true
 		stealBlacklistIds[fruitId] = true
 		return false
+	end
+	if not success then
+		stealBlacklist[fruit]      = true
+		stealBlacklistIds[fruitId] = true
 	end
 	return success
 end
@@ -428,9 +427,9 @@ local function goToSpawnAndComplete()
 		return
 	end
 	local conn = moveTo(hrp, targetCF)
-	task.wait()
+	task.wait(0.02)
 	Networking.Steal.CompleteSteal:Fire()
-	task.wait()
+	task.wait(0.06)
 	conn:Disconnect()
 	workspace.Gravity = savedGravity
 end
