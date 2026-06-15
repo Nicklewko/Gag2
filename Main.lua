@@ -899,13 +899,6 @@ AutoTab:CreateSlider({
 
 AutoTab:CreateSection("Buying")
 
-AutoTab:CreateToggle({
-	Name = "Auto Buy Seeds",
-	CurrentValue = autoBuy,
-	Flag = "autobuyseeds",
-	Callback = function(Value) autoBuy = Value end,
-})
-
 AutoTab:CreateDropdown({
 	Name = "Select Seeds",
 	Options = getSeedList(),
@@ -916,10 +909,17 @@ AutoTab:CreateDropdown({
 })
 
 AutoTab:CreateToggle({
-	Name = "Auto Buy Gear",
-	CurrentValue = autoBuyGear,
-	Flag = "autobuygear",
-	Callback = function(Value) autoBuyGear = Value end,
+	Name = "Auto Buy Seeds",
+	CurrentValue = autoBuy,
+	Flag = "autobuyseeds",
+	Callback = function(Value) 
+		autoBuy = Value
+		if Value then
+			for _, v in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
+				buySeeds(v.Name, v.Value)
+			end	
+		end
+	end,
 })
 
 AutoTab:CreateDropdown({
@@ -929,6 +929,20 @@ AutoTab:CreateDropdown({
 	MultipleOptions = true,
 	Flag = "autobuygearselected",
 	Callback = function(Options) autoBuySelectedGear = Options end,
+})
+
+AutoTab:CreateToggle({
+	Name = "Auto Buy Gear",
+	CurrentValue = autoBuyGear,
+	Flag = "autobuygear",
+	Callback = function(Value) 
+		autoBuyGear = Value
+		if Value then
+			for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
+				buyGear(v.Name, v.Value)
+			end	
+		end
+	end,
 })
 
 AutoTab:CreateSection("Own")
