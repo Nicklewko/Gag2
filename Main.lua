@@ -386,8 +386,13 @@ local function steal(fruit, owner)
 			fireproximityprompt(pp)
 			Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId)
 			noclipLoop()
-			task.wait()
-		until att >= 1 or not pp.Parent
+			task.wait(0.15)
+		until att >= 3 or not pp.Parent
+
+		if att >= 3 then
+			stealBlacklist[fruit]      = true
+			stealBlacklistIds[fruitId] = true
+		end
 
 		success = true
 	end)
@@ -403,10 +408,6 @@ local function steal(fruit, owner)
 		stealBlacklist[fruit]      = true
 		stealBlacklistIds[fruitId] = true
 		return false
-	end
-	if not success then
-		stealBlacklist[fruit]      = true
-		stealBlacklistIds[fruitId] = true
 	end
 	return success
 end
