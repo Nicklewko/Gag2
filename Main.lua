@@ -565,11 +565,11 @@ player:GetAttributeChangedSignal("FruitCount"):Connect(sellAll)
 
 local function buySeeds(name, amt)
 	if not autoBuy or not table.find(autoBuySelected, name) then return end
-	for _ = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name); task.wait(0.05) end
+	for _ = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name) end
 end
 local function buyGear(name, amt)
 	if not autoBuyGear or not table.find(autoBuySelectedGear, name) then return end
-	for _ = 1, amt do Networking.GearShop.PurchaseGear:Fire(name); task.wait(0.05) end
+	for _ = 1, amt do Networking.GearShop.PurchaseGear:Fire(name) end
 end
 
 for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
@@ -695,7 +695,6 @@ task.spawn(function()
 		local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
 		if not targetHrp then continue end
 
-		-- Velocity auf alle Teile des Ziel-Chars setzen
 		local flingVec = Vector3.new(
 			math.random(-200, 200),
 			1e5,
@@ -709,7 +708,7 @@ task.spawn(function()
 			end
 		end)
 
-		task.wait(1.0) -- Cooldown zwischen Impulsen
+		task.wait(1.0)
 	end
 end)
 
