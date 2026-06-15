@@ -237,7 +237,7 @@ local Window = Rayfield:CreateWindow({
 		ElementStroke = Color3.fromRGB(45, 45, 45),
 		SecondaryElementStroke = Color3.fromRGB(35, 35, 35),
 		SliderBackground = Color3.fromRGB(255, 255, 255),
-		SliderProgress = Color3.fromRGB(220, 220, 220),
+		SliderProgress = Color3.fromRGB(170, 170, 170),
 		SliderStroke = Color3.fromRGB(180, 180, 180),
 		ToggleBackground = Color3.fromRGB(20, 20, 20),
 		ToggleEnabled = Color3.fromRGB(255, 255, 255),
@@ -520,7 +520,7 @@ local function getTargetFruit(t)
 						if v > bestV then bestV = v; best = tf; bestPlr = plr end
 					end
 				else
-					if isValidFruit(target) then
+					if isValidFruit(target) and false then --false on purpose
 						local v = getFruitValue(target)
 						if v > bestV then bestV = v; best = target end
 					end
@@ -540,7 +540,7 @@ local function getTargetFruit(t)
 					if isValidFruit(tf) then return tf end
 				end
 			else
-				if isValidFruit(target) then return target, game.Players:FindFirstChild(t) end
+				if isValidFruit(target) and false then return target, game.Players:FindFirstChild(t) end -- false on purpose too
 			end
 		end
 	end
