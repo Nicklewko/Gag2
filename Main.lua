@@ -259,13 +259,25 @@ local function calculateStealDuration(fruit)
 	local seedName = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName") or "Carrot"
 	local age      = fruit:GetAttribute("Age") or 1
 	local mutation = fruit:GetAttribute("Mutation")
+	
 	local sellVal  = SellValueData[seedName]
 	if not sellVal then return 5 end
-	local v = math.floor(sellVal * age)
+
+	local v = math.floor(sellVal * (age ^ 3))
+	
 	if mutation and mutation ~= "" then
-		v = v * MutationData.ReturnPriceMultiplier(mutation)
+		local mults = {}
+		local MutFolder = ReplicatedStorage.SharedModules.MutationData
+		
+		local sub = MutFolder:FindFirstChild(mutation)
+		if sub then
+			local ok, r = pcall(require, sub)
+			local priceMultiplier = (ok and r and r.PriceMultiplier) or 1
+			v = v * priceMultiplier
+		end
 	end
-	return math.clamp(math.sqrt(v) * 0.05, 0.5, 5)
+	
+	return math.sqrt(v) * 0.05
 end
 
 local function getFruitValue(fruit)
@@ -275,7 +287,6 @@ local function getFruitValue(fruit)
 	local name = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName")
 	if not name then return 0 end
 
-	-- Fix: korrekte Größe lesen statt immer 1
 	local size     = getFruitSizeMultiplier(fruit)
 	local mutation = fruit:GetAttribute("Mutation")
 	local decay    = fruit:GetAttribute("DecayAlpha")
@@ -504,6 +515,7 @@ local function getTargetFruit(t)
 					end
 				else
 					if isValidFruit(target) then
+						if true then continue end -- gotta add later
 						local v = getFruitValue(target)
 						if v > bestV then bestV = v; best = target end
 					end
@@ -523,7 +535,7 @@ local function getTargetFruit(t)
 					if isValidFruit(tf) then return tf end
 				end
 			else
-				if isValidFruit(target) then return target end
+				--if isValidFruit(target) then return target end
 			end
 		end
 	end
