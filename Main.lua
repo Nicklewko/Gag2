@@ -346,13 +346,7 @@ local function collect(p, maxAtt)
 	if not ok then warn("collect loop error:", err) end
 end
 
--- ============================================================
--- STEAL — BUGFIX
--- Vorher: fireproximityprompt(pp, duration) ohne HoldDuration=0
---   → Executor ignoriert 2. Argument → Prompt hält nie → schlägt fehl
--- Fix:    HoldDuration auf 0 setzen + Loop wie collect()
--- ============================================================
-local function steal(fruit)
+local function steal(fruit, owner)
 	if not isValidFruit(fruit) then return false end
 	local ownerUserId = tonumber(fruit:GetAttribute("UserId"))
 	local plantId     = fruit:GetAttribute("PlantId")
@@ -376,25 +370,23 @@ local function steal(fruit)
 	local savedGravity = workspace.Gravity
 	workspace.Gravity  = 0
 	local oldPos       = char:GetPivot()
-	-- Leicht unterhalb der HarvestPart → Server-Distanzcheck zuverlässiger
 	local conn         = moveTo(hrp, CFrame.new(hp.Position - Vector3.new(0, 2, 0)))
 	local success      = false
 
 	local ok, err = pcall(function()
-		-- [FIX 1] HoldDuration → 0 damit fireproximityprompt sofort greift
+		task.wait(pp.HoldDuration)
+		
 		pp.HoldDuration = 0
-		-- [FIX 2] Frame warten bis Teleport aktiv ist
-		task.wait()
 		noclipLoop()
 
-		-- [FIX 3] Loop (identisch zu collect) statt einmaligem Fire mit ignoriertem 2. Arg
 		local att = 0
 		repeat
 			att = att + 1
 			fireproximityprompt(pp)
+			Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId)
 			noclipLoop()
-			task.wait(0.05)
-		until att >= 15 or not pp.Parent
+			task.wait()
+		until att >= 5 or not pp.Parent
 
 		success = true
 	end)
@@ -513,7 +505,7 @@ local function getTargetFruit(t)
 		if bestCache and bestCache.Parent and os.clock() - bestCacheT < BEST_TTL and isValidFruit(bestCache) then
 			return bestCache
 		end
-		local best, bestV = nil, -1
+		local best, bestV, bestPlr = nil, -1, nil
 		for _, plr in pairs(game.Players:GetChildren()) do
 			if plr == player then continue end
 			if not canSteal(plr.Name) then continue end
@@ -525,7 +517,7 @@ local function getTargetFruit(t)
 					for _, tf in pairs(fruits:GetChildren()) do
 						if not isValidFruit(tf) then continue end
 						local v = getFruitValue(tf)
-						if v > bestV then bestV = v; best = tf end
+						if v > bestV then bestV = v; best = tf; bestPlr = plr end
 					end
 				else
 					if isValidFruit(target) then
@@ -537,7 +529,7 @@ local function getTargetFruit(t)
 		end
 		bestCache  = best
 		bestCacheT = os.clock()
-		return best
+		return best, bestPlr
 	else
 		local garden = getTargetGarden(t)
 		if not garden then return end
@@ -548,7 +540,7 @@ local function getTargetFruit(t)
 					if isValidFruit(tf) then return tf end
 				end
 			else
-				if isValidFruit(target) then return target end
+				if isValidFruit(target) then return target, game.Players:FindFirstChild(t) end
 			end
 		end
 	end
@@ -604,10 +596,10 @@ task.spawn(function()
 				if not ok then warn("goToSpawnAndComplete:", err) end
 				task.wait(1)
 			else
-				local item = getTargetFruit(stealTarget)
+				local item, plr = getTargetFruit(stealTarget)
 				if item and item.Parent then
 					local fruitId    = item:GetAttribute("FruitId")
-					local ok, result = pcall(steal, item)
+					local ok, result = pcall(steal, item, plr)
 					if ok and result == true then
 						local ok2, err2 = pcall(goToSpawnAndComplete)
 						if not ok2 then warn("goToSpawnAndComplete:", err2) end
