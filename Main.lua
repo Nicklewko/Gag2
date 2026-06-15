@@ -1,3 +1,6 @@
+--Add: esp formatting numbers. (ex.: 1234 = 1.23k, 100000 = 100k, 1000000 = 1M)
+--Add: 
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -408,7 +411,7 @@ local function steal(fruit)
 		return false
 	end
 	pp.HoldDuration    = 0
-	local duration     = calculateStealDuration(fruit) + 0.5
+	local duration     = calculateStealDuration(fruit)
 	local savedGravity = workspace.Gravity
 	workspace.Gravity  = 0
 	local oldPos  = char:GetPivot()
@@ -675,7 +678,7 @@ end)
 -- AutoCollect Loop
 task.spawn(function()
 	while true do
-		task.wait(0.3)
+		task.wait()
 		if not autoCollect or not plot or maxInventory() then continue end
 		local pPlants = plot:FindFirstChild("Plants")
 		if not pPlants then continue end
@@ -696,7 +699,7 @@ task.spawn(function()
 							local pId = fruit:GetAttribute("PlantId")
 							if fId and pId then
 								Networking.Garden.CollectFruit:Fire(pId, fId)
-								task.wait(0.05)
+								task.wait(0.3)
 							end
 						end
 					end
@@ -713,7 +716,7 @@ task.spawn(function()
 						local pId = fruit:GetAttribute("PlantId")
 						if pId then
 							Networking.Garden.CollectFruit:Fire(pId, "")
-							task.wait(0.05)
+							task.wait(0.3)
 						end
 					end
 				end
