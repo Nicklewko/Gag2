@@ -6,7 +6,11 @@ local CoreGui = game:GetService("CoreGui")
 local Networking = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData = require(ReplicatedStorage.SharedModules.SeedData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
+-- FastFlags + Asserts sind gecacht → kein Crash
+local FastFlags = require(ReplicatedStorage.UserGenerated.FastFlags)
+local Asserts = require(ReplicatedStorage.UserGenerated.Lang.Asserts)
 
+-- MutationData: Sub-Module direkt requiren (kein FastFlags-Crash)
 local MutationData
 do
 	local mutationMultipliers = {}
@@ -34,56 +38,62 @@ do
 	}
 end
 
-local singleHarvestPlants = {}
-for _, data in SeedData do
-	if data.SeedName then
-		singleHarvestPlants[data.SeedName] = data.IsSingleHarvest == true
-	end
-end
+-- FruitValueCalc: originale Logik inline, MutationData durch lokale Version ersetzt
+local FruitValueCalc
+do
+	local fv1 = FastFlags.Replicated("Game.Selling.SizeMultiplier", Asserts.FinitePositive, 1)
+	local fv2 = FastFlags.Replicated("Game.Selling.MutationMultiplier", Asserts.FinitePositive, 1)
+	local fv3 = FastFlags.Replicated("Game.Selling.SizeExponent", Asserts.FinitePositive, 2.65)
+	local fv4 = FastFlags.Replicated("Game.Selling.SizeExponentOverrides", Asserts.Map(Asserts.String, Asserts.FinitePositive), {
+		Mushroom = 1.9,
+		Bamboo = 1.75
+	})
+	local fv5 = FastFlags.Replicated("Game.Selling.SingleHarvestMutationBonusScale", Asserts.FiniteNonNegative, 0.15)
+	local fv6 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.Enabled", Asserts.Boolean, true)
+	local fv7 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.Knee", Asserts.FinitePositive, 5)
+	local fv8 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.TailExponent", Asserts.FinitePositive, 1.5)
 
--- Fix #1: korrekte Werte aus FruitValueCalc Source
-local SIZE_EXPONENT_OVERRIDES = { Mushroom = 1.9, Bamboo = 1.75 }
-local MIN_VALUES = { Carrot = 4 }
-local SINGLE_HARVEST_MUTATION_SCALE = 0.15  -- Source: 0.15, nicht 0.25
-local DIMINISHING_KNEE = 5
-local DIMINISHING_TAIL_EXP = 1.5
+	local singleHarvest = {}
+	local kneeMultipliers = {}
+	local tailExponentMultipliers = {}
+	local minValues = { Carrot = 4 }
 
-local function calcFruitValue(fruitName, sizeMultiplier, mutation, playerInst, decayAlpha)
-	local size = sizeMultiplier or 1
-	local exponent = SIZE_EXPONENT_OVERRIDES[fruitName] or 2.65
-
-	-- Fix #1: DiminishingReturns ist im Source enabled=true (war false)
-	local sizeScore
-	local knee = DIMINISHING_KNEE
-	if knee < size then
-		-- knee^exp * (size/knee)^min(tailExp, exp)
-		sizeScore = knee ^ exponent * (size / knee) ^ math.min(DIMINISHING_TAIL_EXP, exponent)
-	else
-		sizeScore = size ^ exponent
-	end
-
-	local mutMult = 1
-	if mutation and mutation ~= "" then
-		local rawMult = MutationData.ReturnPriceMultiplier(mutation)
-		-- Fix #1: SingleHarvest Bonus Scale = 0.15 (nicht 0.25)
-		if singleHarvestPlants[fruitName] and rawMult > 1 then
-			mutMult = 1 + (rawMult - 1) * SINGLE_HARVEST_MUTATION_SCALE
-		else
-			mutMult = rawMult
+	for _, data in SeedData do
+		if data.SeedName then
+			singleHarvest[data.SeedName] = data.IsSingleHarvest == true
+			kneeMultipliers[data.SeedName] = 1
+			tailExponentMultipliers[data.SeedName] = 1
 		end
 	end
 
-	local decayMult = 1
-	if typeof(decayAlpha) == "number" and decayAlpha > 0 then
-		decayMult = 1 - math.clamp(decayAlpha, 0, 1) * 0.8
+	local fv12 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.KneeMultipliers", Asserts.Map(Asserts.String, Asserts.FinitePositive), kneeMultipliers)
+	local fv13 = FastFlags.Replicated("Game.Selling.SizeDiminishingReturns.TailExponentMultipliers", Asserts.Map(Asserts.String, Asserts.FinitePositive), tailExponentMultipliers)
+
+	-- Identisch zum Original, nur MutationData → lokale Version
+	FruitValueCalc = function(p1, p2, p3, p4, p5)
+		local v22 = fv4:Get()[p1] or fv3:Get()
+		local v32 = p2 ^ v22
+		if fv6:Get() then
+			local v42 = fv7:Get() * (fv12:Get()[p1] or 1)
+			if v42 < p2 then
+				v32 = v42 ^ v22 * (p2 / v42) ^ math.min(fv8:Get() * (fv13:Get()[p1] or 1), v22)
+			end
+		end
+		local v72 = fv1:Get()
+		local v82
+		if p3 then
+			local v9 = MutationData.ReturnPriceMultiplier(p3)  -- lokale Version
+			local v10 = if singleHarvest[p1] and v9 > 1 then 1 + (v9 - 1) * fv5:Get() else v9
+			v82 = v10 * fv2:Get()
+		else
+			v82 = 1
+		end
+		local v11 = if typeof(p5) == "number" and p5 > 0 then 1 - math.clamp(p5, 0, 1) * 0.8 else 1
+		local v122 = 1 + (p4:GetAttribute("Friends") or 0) * 0.1
+		local v132 = minValues[p1]
+		local v142 = math.floor((SellValueData[p1] or 0) * v32 * v72 * v82 * v11 * v122)
+		return if v132 then if v142 < v132 then v132 else v142 else v142
 	end
-
-	local friendsMult = 1 + ((playerInst and playerInst:GetAttribute("Friends")) or 0) * 0.1
-	local base = SellValueData[fruitName] or 0
-	local result = math.floor(base * sizeScore * mutMult * decayMult * friendsMult)
-
-	local minVal = MIN_VALUES[fruitName]
-	return minVal and math.max(result, minVal) or result
 end
 
 local night = ReplicatedStorage.Night
@@ -216,12 +226,11 @@ local function moveTo(hrp, targetCF)
 end
 
 local function calculateStealDuration(fruit)
+	if true then return 0.6 end
+
 	local seedName = fruit:GetAttribute("CorePartName") or "Carrot"
 	local age = fruit:GetAttribute("Age") or 1
 	local mutation = fruit:GetAttribute("Mutation")
-
-	if true then return 0.6 end
-
 	local sellValue = SellValueData[seedName]
 	if not sellValue then return 5 end
 
@@ -229,7 +238,6 @@ local function calculateStealDuration(fruit)
 	if mutation and mutation ~= "" then
 		v2 = v2 * MutationData.ReturnPriceMultiplier(mutation)
 	end
-
 	return math.clamp(math.sqrt(v2) * 0.05, 0.5, 5)
 end
 
@@ -242,13 +250,13 @@ local function getFruitValue(fruit)
 	local name = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName")
 	if not name then return 0 end
 
-	-- SizeMultiplier ist nur auf geernteten Tools gesetzt, nicht auf Garten-Früchten
-	-- → defaultet auf 1, dadurch gleicher Wert für gleiche Mutation/Art
 	local size = fruit:GetAttribute("SizeMultiplier") or fruit:GetAttribute("Scale") or 1
 	local mutation = fruit:GetAttribute("Mutation")
 	local decay = fruit:GetAttribute("DecayAlpha")
 
-	local v = calcFruitValue(name, size, mutation, player, decay)
+	local ok, v = pcall(FruitValueCalc, name, size, mutation, player, decay)
+	v = (ok and type(v) == "number") and v or 0
+
 	valueCache[fruit] = { v = v, t = os.clock() }
 	return v
 end
@@ -332,7 +340,6 @@ local function steal(fruit)
 		return false
 	end
 
-	-- Fix #5: pp vor Loop prüfen
 	local pp = FindFirstDescendantOfClass(hp, "ProximityPrompt")
 	if not pp then
 		warn("steal: kein ProximityPrompt, blacklist")
@@ -341,15 +348,12 @@ local function steal(fruit)
 		return false
 	end
 
-	-- Fix #4: HoldDuration=0 nötig damit PromptTriggered BeginSteal+CompleteSteal feuert
 	pp.HoldDuration = 0
 
 	local duration = calculateStealDuration(fruit) + 0.5
-
 	local savedGravity = workspace.Gravity
 	workspace.Gravity = 0
 	local oldPos = char:GetPivot()
-
 	local targetCF = CFrame.new(hp.Position)
 	local conn = moveTo(hrp, targetCF)
 
@@ -363,12 +367,10 @@ local function steal(fruit)
 				success = true
 				break
 			end
-
 			noclipLoop()
 			Networking.Steal.BeginSteal:Fire(ownerUserId, plantId, fruitId)
 			fireproximityprompt(pp)
 			task.wait()
-
 			if not fruit.Parent or fruit.Parent ~= prevPar then
 				success = true
 				break
@@ -427,7 +429,6 @@ local function goToSpawnAndComplete()
 end
 
 local function sortQueue()
-	-- Fix #3: aufsteigend → Tier 1 (Dropped) hat Priorität vor Tier 2 (Seeds)
 	table.sort(queue, function(a, b)
 		return a.t < b.t
 	end)
@@ -549,14 +550,10 @@ local function getTargetFruit(t)
 			local fruits = target:FindFirstChild("Fruits")
 			if fruits then
 				for _, targetFruit in pairs(fruits:GetChildren()) do
-					if isValidFruit(targetFruit) then
-						return targetFruit
-					end
+					if isValidFruit(targetFruit) then return targetFruit end
 				end
 			else
-				if isValidFruit(target) then
-					return target
-				end
+				if isValidFruit(target) then return target end
 			end
 		end
 	end
@@ -577,6 +574,35 @@ local function sellAll()
 	end
 end
 player:GetAttributeChangedSignal("FruitCount"):Connect(sellAll)
+
+local function buySeeds(name, amt)
+	if autoBuy and table.find(autoBuySelected, name) then
+		for i = 1, amt do
+			Networking.SeedShop.PurchaseSeed:Fire(name)
+		end
+	end
+end
+
+local function buyGear(name, amt)
+	if autoBuyGear and table.find(autoBuySelectedGear, name) then
+		for i = 1, amt do
+			Networking.GearShop.PurchaseGear:Fire(name)
+		end
+	end
+end
+
+-- Fix: v.:GetAttributeChangedSignal → v:GetAttributeChangedSignal
+for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
+	v:GetAttributeChangedSignal("Value"):Connect(function()
+		buyGear(v.Name, v:GetAttribute("Value") or 0)
+	end)
+end
+
+for _, v in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
+	v:GetAttributeChangedSignal("Value"):Connect(function()
+		buySeeds(v.Name, v:GetAttribute("Value") or 0)
+	end)
+end
 
 -- Steal/Queue Loop
 task.spawn(function()
@@ -602,7 +628,6 @@ task.spawn(function()
 					local ok2, err2 = pcall(goToSpawnAndComplete)
 					if not ok2 then warn("goToSpawnAndComplete error:", err2) end
 				else
-					-- Fix #7: kein Fruit gefunden → kurz warten statt CPU-Spin
 					task.wait(0.5)
 				end
 			end
@@ -629,18 +654,6 @@ task.spawn(function()
 			if hum then
 				hum.WalkSpeed = walkSpeed
 				hum.JumpHeight = jumpHeight
-			end
-		end
-
-		if autoBuy then
-			for _, name in pairs(autoBuySelected) do
-				Networking.SeedShop.PurchaseSeed:Fire(name)
-			end
-		end
-
-		if autoBuyGear then
-			for _, name in pairs(autoBuySelectedGear) do
-				Networking.GearShop.PurchaseGear:Fire(name)
 			end
 		end
 
