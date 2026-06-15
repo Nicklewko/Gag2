@@ -277,7 +277,7 @@ local function calculateStealDuration(fruit)
 		end
 	end
 	
-	return 0.4, math.sqrt(v) * 0.05
+	return 0, math.sqrt(v) * 0.05
 end
 
 local function getFruitValue(fruit)
