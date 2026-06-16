@@ -858,7 +858,7 @@ task.spawn(function()
 		task.wait()
 		if not autoCollect or not plot or not autoBuyPets or maxInventory() then continue end
 		if petQueue[1] then
-			collect(table.remove(petQueue[1], 1)
+			collect(table.remove(petQueue[1], 1))
 			continue
 		end
 		local pPlants = plot:FindFirstChild("Plants"); if not pPlants then continue end
