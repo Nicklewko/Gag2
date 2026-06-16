@@ -422,12 +422,13 @@ local function steal(fruit, owner)
 	local success   = false
 
 	local ok, err = pcall(function()
+		fireproximityprompt(pp, pp.HoldDuration + 0.1)
 		task.wait(pp.HoldDuration + 0.15)
-		pp.HoldDuration = 0
 		noclipLoop()
 		local att = 0
 		repeat
 			att = att + 1
+			pp.HoldDuration = 0
 			fireproximityprompt(pp)
 			if owner then Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId) end
 			noclipLoop()
