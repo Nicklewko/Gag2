@@ -431,7 +431,7 @@ local function steal(fruit, owner)
 
 	local ok, err = pcall(function()
 		fireproximityprompt(pp, pp.HoldDuration + 0.1)
-		task.wait(pp.HoldDuration)
+		task.wait(pp.HoldDuration + 0.25)
 		pp.HoldDuration = 0
 		task.wait(0.05)
 			
@@ -713,7 +713,7 @@ local function addAllPetsToQueue()
 end
 
 task.spawn(function()
-	while task.wait(10) do
+	while task.wait(0.5) do
 		addAllPetsToQueue()
 	end
 end)
