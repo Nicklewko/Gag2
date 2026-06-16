@@ -5,10 +5,133 @@ local CoreGui = game:GetService("CoreGui")
 
 local Networking    = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData      = require(ReplicatedStorage.SharedModules.SeedData)
-local PetData 		= require(ReplicatedStorage.SharedData.PetData)
+--local PetData 		= require(ReplicatedStorage.SharedData.PetData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
 
 local WildPetSpawns = workspace.Map.WildPetSpawns
+
+local PetData = {
+    Raccoon = {
+        DisplayName = "Raccoon",
+        Rarity = "Super",
+        SpawnChance = 0.24,
+        BasePrice = 5000000,
+        Offset = Vector3.new(0, 2.5, 0),
+        Description = "Sneaks out at <b>night</b> to <font color=\"#ff0000\">steal</font> fruit from empty gardens and <font color=\"#55ff55\">raises your steal limit by +25</font>",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Monkey = {
+        DisplayName = "Monkey",
+        Rarity = "Mythic",
+        SpawnChance = 0.2,
+        BasePrice = 1000000,
+        Offset = Vector3.new(0, 2.5, 0),
+        Description = "Swings around your <b>garden</b> and occasionally <font color=\"#55ff55\">picks ripe fruit</font> and brings it straight to you",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Robin = {
+        DisplayName = "Robin",
+        Rarity = "Legendary",
+        SpawnChance = 2.86,
+        BasePrice = 75000,
+        Offset = Vector3.new(0, 5, 0),
+        Description = "Flies around your <b>garden</b> eating ripe fruit and sometimes <font color=\"#55ff55\">drops seeds</font>",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Frog = {
+        DisplayName = "Frog",
+        Rarity = "Common",
+        SpawnChance = 11.9,
+        BasePrice = 10000,
+        Offset = Vector3.new(0, 2, 0),
+        Description = "Hops around your <b>garden</b> and <font color=\"#55ff55\">boosts your jump height by +5</font>",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Bunny = {
+        DisplayName = "Bunny",
+        Rarity = "Common",
+        SpawnChance = 11.9,
+        BasePrice = 20000,
+        Offset = Vector3.new(0, 2, 0),
+        Description = "Hops around your <b>garden</b> and <font color=\"#55ff55\">boosts your walk speed by +5</font>",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Deer = {
+        DisplayName = "Deer",
+        Rarity = "Rare",
+        SpawnChance = 4.29,
+        BasePrice = 50000,
+        Offset = Vector3.new(0, 3, 0),
+        Description = "Trots around your <b>garden</b> and helps plants <font color=\"#55ff55\">grow 10% faster</font>",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Owl = {
+        DisplayName = "Owl",
+        Rarity = "Uncommon",
+        SpawnChance = 7.14,
+        BasePrice = 25000,
+        Offset = Vector3.new(0, 5, 0),
+        Description = "<font color=\"#55ff55\">Extends your view distance by 12.5%</font> at night and <font color=\"#ffaa00\">hoots loudly</font> when a rare pet spawns",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Bee = {
+        DisplayName = "Bee",
+        Rarity = "Legendary",
+        SpawnChance = 2.38,
+        BasePrice = 1000000,
+        Offset = Vector3.new(0, 5, 0),
+        Description = "Patrols your <b>garden</b> and <font color=\"#ff8800\">swarms intruders</font> to defend your fruit",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    Unicorn = {
+        DisplayName = "Unicorn",
+        Rarity = "Mythic",
+        SpawnChance = 0.71,
+        BasePrice = 4000000,
+        Offset = Vector3.new(0, 3, 0),
+        Description = "Trots around your <b>garden</b> and <b>multiplies</b> the chance for plants and fruit to turn <font color=\"#ff66ff\">Rainbow</font> by <b>x1</b>",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    BlackDragon = {
+        DisplayName = "Black Dragon",
+        Rarity = "Super",
+        SpawnChance = 0,
+        BasePrice = 1000000,
+        Offset = Vector3.new(0, 5, 0),
+        Description = "Flies around your <b>garden</b> and <font color=\"#ff4400\">breathes fire</font> on intruders, setting them ablaze",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    IceSerpent = {
+        DisplayName = "Ice Serpent",
+        Rarity = "Super",
+        SpawnChance = 0,
+        BasePrice = 20000000,
+        Offset = Vector3.new(0, 5, 0),
+        Description = "Flies around your <b>garden</b> and <font color=\"#66ccff\">breathes frost</font> on intruders, freezing them solid",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    },
+    GoldenDragonfly = {
+        DisplayName = "Golden Dragonfly",
+        Rarity = "Mythic",
+        SpawnChance = 0.6,
+        BasePrice = 3000000,
+        Offset = Vector3.new(0, 5, 0),
+        Description = "Flies around your <b>garden</b> and <b>multiplies</b> the chance for plants and fruit to turn <font color=\"#ffd700\">Gold</font> by <b>x1</b>",
+        NeededWeather = {},
+        NeededTimeCycle = {}
+    }
+}
 
 -- MutationData
 local MutationData
