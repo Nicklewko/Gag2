@@ -24,7 +24,6 @@ local PetData = {
 	GoldenDragonfly={ DisplayName = "Golden Dragonfly",Rarity = "Mythic",    SpawnChance = 0.6,  BasePrice = 3000000  },
 }
 
--- MutationData
 local MutationData
 do
 	local mults = {}
@@ -44,7 +43,6 @@ do
 	}
 end
 
--- FruitValueCalc
 local FruitValueCalc
 do
 	local SIZE_EXP_DEFAULT     = 2.65
@@ -109,9 +107,6 @@ end
 local dropped = workspace.DroppedItems
 local seeds   = workspace.Map.SeedPackSpawnServerLocations
 
--- ============================================================
--- STATE
--- ============================================================
 local collectSeeds          = false
 local collectDropped        = false
 local autoSell              = false
@@ -137,7 +132,6 @@ local stealTarget           = nil
 local stealTargetToggled    = false
 local antiSteal             = false
 local stealBest             = false
--- Fling
 local flingEnabled          = false
 local flingTarget           = nil
 local flingStrength         = 1
@@ -146,9 +140,6 @@ local isFlingling           = false
 
 local STEAL_NEARBY_RADIUS = 15
 
--- ============================================================
--- ESP FOLDER
--- ============================================================
 local espParent
 if pcall(function() return CoreGui.Name end) then espParent = CoreGui
 else espParent = player:WaitForChild("PlayerGui") end
@@ -156,9 +147,6 @@ if espParent:FindFirstChild("G2HFruitESP") then espParent.G2HFruitESP:Destroy() 
 local espFolder = Instance.new("Folder")
 espFolder.Name = "G2HFruitESP"; espFolder.Parent = espParent
 
--- ============================================================
--- GARDEN / PLOT INIT
--- ============================================================
 local function waitForAttribute(inst, attr, timeout)
 	timeout = timeout or 30
 	local t0 = tick()
@@ -172,16 +160,13 @@ local plotId   = waitForAttribute(player, "PlotId")
 local plot     = Gardens:WaitForChild("Plot" .. tostring(plotId))
 local spawnPos = plot:WaitForChild("PlotSizeReference")
 
--- ============================================================
--- CACHE / STATE
--- ============================================================
 local queue             = {}
 local stealBlacklist    = setmetatable({}, {__mode = "k"})
 local stealBlacklistIds = {}
 local CACHE_TTL         = 8
 local valueCache        = setmetatable({}, {__mode = "k"})
 local ppCache           = setmetatable({}, {__mode = "k"})
-local bestCache         = nil   -- { plr = Instance } oder nil
+local bestCache         = nil
 local bestCacheT        = 0
 local BEST_TTL          = 1.5
 
@@ -194,9 +179,6 @@ local function resetStealState()
 	bestCacheT        = 0
 end
 
--- ============================================================
--- NOCLIP
--- ============================================================
 local noclipParts = {}
 local function rebuildNoclipCache(char)
 	noclipParts = {}
@@ -218,9 +200,6 @@ local function noclipLoop()
 	end
 end
 
--- ============================================================
--- RAYFIELD WINDOW
--- ============================================================
 local Window = Rayfield:CreateWindow({
 	Name = "Astro Hub", Icon = 0,
 	LoadingTitle = "Astro Hub", LoadingSubtitle = "By Someone",
@@ -263,9 +242,6 @@ local Window = Rayfield:CreateWindow({
 })
 Rayfield:Notify({ Title = "Loading...", Content = "Please wait.", Duration = 5, Image = 4483362458 })
 
--- ============================================================
--- HELPERS
--- ============================================================
 local function moveTo(hrp, targetCF)
 	return RunService.Heartbeat:Connect(function()
 		if hrp and hrp.Parent then
@@ -311,9 +287,6 @@ local function isValidFruit(fruit)
 	return age ~= nil and maxAge ~= nil and age >= maxAge
 end
 
--- ============================================================
--- FLING (angepasster SkidFling — nahtlos, einstellbare Stärke)
--- ============================================================
 local function performFling(targetPlayer)
 	if isFlingling then return end
 	isFlingling = true
@@ -376,9 +349,6 @@ local function performFling(targetPlayer)
 	isFlingling = false
 end
 
--- ============================================================
--- COLLECT (Queue: Früchte, Seeds, Pets)
--- ============================================================
 local function collect(p, maxAtt)
 	local char, hrp = getCharacter()
 	if not char or not hrp or not char:FindFirstChild("Head") then return end
@@ -406,9 +376,6 @@ local function collect(p, maxAtt)
 	if not ok then warn("collect:", err) end
 end
 
--- ============================================================
--- STEAL
--- ============================================================
 local function steal(fruit, owner)
 	if not isValidFruit(fruit) then return false end
 	local ownerUserId = tonumber(fruit:GetAttribute("UserId"))
@@ -462,7 +429,6 @@ local function steal(fruit, owner)
 	return success
 end
 
--- ============================================================
 local function goToSpawnAndComplete()
 	local char, hrp = getCharacter()
 	if not char or not hrp then return end
@@ -476,9 +442,6 @@ local function goToSpawnAndComplete()
 	conn:Disconnect(); workspace.Gravity = savedGrav
 end
 
--- ============================================================
--- QUEUE
--- ============================================================
 local function sortQueue()
 	table.sort(queue, function(a, b) return a.t > b.t end)
 end
@@ -499,9 +462,6 @@ local function findEntry(tbl, model, tier)
 	return nil
 end
 
--- ============================================================
--- LISTS
--- ============================================================
 local function getPlayerList()
 	local pt = {}
 	for _, p in pairs(game.Players:GetPlayers()) do
@@ -528,9 +488,6 @@ local function getPetList()
 	return st
 end
 
--- ============================================================
--- GARDEN / STEAL HELPERS
--- ============================================================
 local function getTargetGarden(t)
 	local tp = game.Players:FindFirstChild(t); if not tp then return end
 	local pid = tp:GetAttribute("PlotId"); if not pid then return end
@@ -642,9 +599,6 @@ local function stealNearbyFruits(centerPos, ownerPlr)
 	end
 end
 
--- ============================================================
--- AUTO SELL / BUY
--- ============================================================
 local function sellAll()
 	if not autoSell then return end
 	local inv = player:GetAttribute("FruitCount")
@@ -695,9 +649,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- PETS
--- ============================================================
 local function addPetToQueue(p)
 	if not autoBuyPets then return end
 	local n = p:GetAttribute("PetName")
@@ -712,7 +663,6 @@ local function addAllPetsToQueue()
 	for _, pet in pairs(WildPetSpawns:GetChildren()) do addPetToQueue(pet) end
 end
 
--- ============================================================
 task.spawn(function()
 	while true do
 		local stealModeOn = (stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget))
@@ -781,9 +731,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- TASK: UTILITY
--- ============================================================
 task.spawn(function()
 	while task.wait() do
 		if noclip then noclipLoop() end
@@ -795,9 +742,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- TASK: AUTO COLLECT
--- ============================================================
 task.spawn(function()
 	while true do
 		task.wait()
@@ -825,9 +769,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- TASK: MANUELLER FLING
--- ============================================================
 task.spawn(function()
 	while true do
 		task.wait(0.2)
@@ -839,9 +780,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- ESP
--- ============================================================
 local function formatNumber(n)
 	if not n then return "0" end
 	if n >= 1e6 then return string.format("%.2fM", n/1e6):gsub("%.00M", "M")
