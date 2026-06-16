@@ -689,15 +689,24 @@ for _, v in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
 	end)
 end
 
+task.spawn(function()
+	while task.wait(90) then
+		buyAllGear()
+		buyAllSeeds()
+	end
+end)
+
 -- ============================================================
 -- PETS
 -- ============================================================
 local function addPetToQueue(p)
-	if not autoBuyPets then return end
-	local n = p:GetAttribute("PetName")
-	if not n or not table.find(autoBuySelectedPet, n) then return end
-	if findEntry(queue, p, 3) then return end
-	addQueue(p, 3, 10)
+	task.delay(10, function()
+		if not autoBuyPets then return end
+		local n = p:GetAttribute("PetName")
+		if not n or not table.find(autoBuySelectedPet, n) then return end
+		if findEntry(queue, p, 3) then return end
+		addQueue(p, 3, 10)
+	end)
 end
 
 WildPetSpawns.ChildAdded:Connect(addPetToQueue)
@@ -722,7 +731,6 @@ task.spawn(function()
 
 			if targetPlr then
 				if isInGarden(targetPlr) then
-					-- Im Garten: kann nicht bestohlen werden
 					if flingOnGarden and night.Value and not isFlingling then
 						bestCache = nil
 						task.spawn(function()
@@ -735,7 +743,6 @@ task.spawn(function()
 					end
 
 				elseif night.Value then
-					-- Draußen bei Nacht → stehlen
 					if maxInventory() then
 						pcall(goToSpawnAndComplete); task.wait(1)
 					else
@@ -746,7 +753,6 @@ task.spawn(function()
 							if ok and result then
 								bestCache = nil
 
-								-- [NEU] Naheliegende Früchte mitnehmen bevor wir zu Spawn gehen
 								local mainHp = fruit:FindFirstChild("HarvestPart")
 								if mainHp and not maxInventory() then
 									stealNearbyFruits(mainHp.Position, targetPlr)
@@ -764,7 +770,7 @@ task.spawn(function()
 						end
 					end
 				else
-					task.wait(1.0) -- Tag → warten
+					task.wait(1.0)
 				end
 			else
 				task.wait(0.5)
