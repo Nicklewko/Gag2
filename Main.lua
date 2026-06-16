@@ -231,6 +231,7 @@ local autoBuyGear           = false
 local autoBuySelectedGear   = {}
 local autoBuyPets           = false
 local autoBuySelectedPet    = {}
+local petQueue				= {}
 local autoCollect           = false
 local collectMutation       = false
 local autoCollectMinValue   = 0
@@ -752,17 +753,13 @@ end
 -- PETS
 -- ============================================================
 
-local autoBuyPets           = false
-local autoBuySelectedPet    = {}
-
 local function addPetToQueue(p)
+	if not autoBuyPets then return end
 	local n = p:GetAttribute("PetName")
-	if not n then return end
-	local s = autoBuySelectedPet[n]
-	if not s then return end
-	local a = findEntry(queue, p, 3)
+	if not n or not autoBuySelectedPet[n] then return end
+	local a = findEntry(petQueue, p, 3)
 	if a then return end
-	addQueue(p, 3)
+	table.insert(petQueue, p)
 end
 
 WildPetSpawns.ChildAdded:Connect(function(p)
@@ -771,9 +768,12 @@ end)
 
 local function addAllPetsToQueue()
 	for _, pet in pairs(WildPetSpawns:GetChildren()) do
-		addQueue(pet)
+		addPetToQueue(pet)
 	end
 end
+
+local function collectPet(p)
+	
 
 -- ============================================================
 -- STEAL
@@ -856,7 +856,11 @@ end)
 task.spawn(function()
 	while true do
 		task.wait()
-		if not autoCollect or not plot or maxInventory() then continue end
+		if not autoCollect or not plot or not autoBuyPets or maxInventory() then continue end
+		if petQueue[1] then
+			collect(table.remove(petQueue[1], 1)
+			continue
+		end
 		local pPlants = plot:FindFirstChild("Plants"); if not pPlants then continue end
 		for _, plant in pairs(pPlants:GetChildren()) do
 			if not autoCollect then break end
