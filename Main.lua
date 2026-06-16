@@ -600,9 +600,9 @@ end
 local function removeTier(tier)
 	for i = #queue, 1, -1 do if queue[i].t == tier then table.remove(queue, i) end end
 end
-local function addQueue(p, tier)
+local function addQueue(p, tier, mA)
 	for _, v in ipairs(queue) do if v.m == p then return end end
-	table.insert(queue, { m = p, t = tier }); sortQueue()
+	table.insert(queue, { m = p, t = tier, a = mA}); sortQueue()
 end
 local function loopAdd(f, tier)
 	for _, item in pairs(f:GetChildren()) do addQueue(item, tier) end
@@ -757,9 +757,9 @@ local function addPetToQueue(p)
 	if not autoBuyPets then return end
 	local n = p:GetAttribute("PetName")
 	if not n or not autoBuySelectedPet[n] then return end
-	local a = findEntry(petQueue, p, 3)
+	local a = findEntry(queue, p, 3)
 	if a then return end
-	table.insert(petQueue, p)
+	addQueue(p, 3, 3)
 end
 
 WildPetSpawns.ChildAdded:Connect(function(p)
@@ -827,14 +827,9 @@ task.spawn(function()
 			else
 				task.wait(0.5)
 			end
-		elseif not isFlinging and #petQueue > 0 then
-			if petQueue[1] then
-				collect(table.remove(petQueue[1], 10))
-				continue
-			end
 		elseif not isFlingling and #queue > 0 then
 			local item = table.remove(queue, 1)
-			if item and item.m and item.m.Parent then pcall(collect, item.m) end
+			if item and item.m and item.m.Parent then pcall(collect, item.m, item.mA) end
 		end
 		task.wait()
 	end
