@@ -617,7 +617,7 @@ local function stealNearbyFruits(centerPos, ownerPlr)
 			if not nhp then continue end
 			local d = (nhp.Position - centerPos).Magnitude
 			if d <= STEAL_NEARBY_RADIUS then
-				table.insert(candidates, { fruit = tf, dist = d })
+				table.insert(candidates, { fruit = tf, dist = d, tries = 3 })
 			end
 		end
 	end
@@ -632,7 +632,7 @@ local function stealNearbyFruits(centerPos, ownerPlr)
 		if not tf or not tf.Parent then continue end
 		local tfId = tf:GetAttribute("FruitId")
 		if not stealBest or not stealTarget or not stealTargetToggled then return end
-		local ok2, res2 = pcall(steal, tf, ownerPlr)
+		local ok2, res2 = pcall(steal, tf, ownerPlr, entry.tries)
 		if not ok2 then
 			stealBlacklist[tf] = true
 			if tfId then stealBlacklistIds[tfId] = true end
@@ -654,7 +654,7 @@ player:GetAttributeChangedSignal("FruitCount"):Connect(sellAll)
 local function buySeeds(name, amt)
 	if not autoBuy or not table.find(autoBuySelected, name) then return end
 	task.spawn(function()
-		for _ = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name); task.wait(0.1) end
+		for _ = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name) end
 	end)
 end
 local function buyAllSeeds()
@@ -665,7 +665,7 @@ end
 local function buyGear(name, amt)
 	if not autoBuyGear or not table.find(autoBuySelectedGear, name) then return end
 	task.spawn(function()
-		for _ = 1, amt do Networking.GearShop.PurchaseGear:Fire(name); task.wait(0.1) end
+		for _ = 1, amt do Networking.GearShop.PurchaseGear:Fire(name) end
 	end)
 end
 local function buyAllGear()
@@ -695,7 +695,7 @@ local function addPetToQueue(p)
 	local n = p:GetAttribute("PetName")
 	if not n or not table.find(autoBuySelectedPet, n) then return end
 	if findEntry(queue, p, 3) then return end
-	addQueue(p, 3, 8)  -- maxAtt=8: 8 × 0.1s = 0.8s max pro Pet
+	addQueue(p, 3, 10)
 end
 
 WildPetSpawns.ChildAdded:Connect(addPetToQueue)
@@ -704,16 +704,6 @@ local function addAllPetsToQueue()
 	for _, pet in pairs(WildPetSpawns:GetChildren()) do addPetToQueue(pet) end
 end
 
--- ============================================================
--- TASK: STEAL + AUTO-FLING + NEARBY-STEAL LOOP
---
--- Ablauf:
---  1. Steal-Modus aktiv? → Target bestimmen
---  2. Target im Garten + Nacht + flingOnGarden → flingen
---  3. Target draußen + Nacht → Hauptfrucht stehlen
---     → Danach ALLE naheliegenden Früchte im Radius stehlen
---     → Dann erst zu Spawn zurück
---  4. Sonst → warten
 -- ============================================================
 task.spawn(function()
 	while true do
@@ -778,7 +768,6 @@ task.spawn(function()
 				task.wait(0.5)
 			end
 
-		-- FIX: War 'not isFlinging' (falsche Variable) → jetzt korrekt 'not isFlingling'
 		elseif not isFlingling and #queue > 0 then
 			local item = table.remove(queue, 1)
 			if item and item.m and item.m.Parent then pcall(collect, item.m, item.a) end
@@ -802,7 +791,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- TASK: AUTO COLLECT (eigene Früchte)
+-- TASK: AUTO COLLECT
 -- ============================================================
 task.spawn(function()
 	while true do
