@@ -868,7 +868,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- TASK: AUTO COLLECT (eigene Früchte)
+-- AUTO COLLECT
 -- ============================================================
 task.spawn(function()
 	while true do
