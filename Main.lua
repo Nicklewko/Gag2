@@ -121,11 +121,11 @@ local stealTargetToggled    = false
 local antiSteal             = false
 local stealBest             = false
 -- Fling
-local flingEnabled          = false  -- manueller Fling
+local flingEnabled          = false
 local flingTarget           = nil
-local flingStrength         = 1      -- 1–10 (1 = original SkidFling-Stärke)
-local flingOnGarden         = false  -- auto-fling wenn Target im Garten (gilt für steal best + target)
-local isFlingling           = false  -- Mutex: verhindert doppelten Fling
+local flingStrength         = 1
+local flingOnGarden         = false
+local isFlingling           = false
 
 -- ============================================================
 -- ESP FOLDER
@@ -292,12 +292,6 @@ local function isValidFruit(fruit)
 	return age ~= nil and maxAge ~= nil and age >= maxAge
 end
 
--- ============================================================
--- FLING (angepasster SkidFling — nahtlos + einstellbare Stärke)
--- Bewegt DEINEN Char zum Target → physikalische Kollision → schleudert
--- Kehrt danach nahtlos zur Ausgangsposition zurück.
--- Läuft im eigenen task.spawn → kein Konflikt mit steal/moveTo
--- ============================================================
 local function performFling(targetPlayer)
 	if isFlingling then return end
 	isFlingling = true
@@ -313,15 +307,13 @@ local function performFling(targetPlayer)
 	local tHrp = tHum and tHum.RootPart
 	if not tHrp then isFlingling = false; return end
 
-	-- Zustand sichern
 	local oldPos    = hrp.CFrame
 	local savedGrav = workspace.Gravity
 	local oldFPDH   = workspace.FallenPartsDestroyHeight
 
 	workspace.Gravity = 0
-	workspace.FallenPartsDestroyHeight = 0/0  -- Verhindert FallenParts-Zerstörung
+	workspace.FallenPartsDestroyHeight = 0/0
 
-	-- BodyVelocity hält unseren Char stabil während der Fling-Schleife
 	local bv = Instance.new("BodyVelocity")
 	bv.Velocity = Vector3.zero
 	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
@@ -329,7 +321,6 @@ local function performFling(targetPlayer)
 
 	hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
 
-	-- Stärke: 1 = original SkidFling (9e7), 10 = 10x stärker (9e8)
 	local BASE = 9e7 * flingStrength
 	local ROT  = 9e8 * flingStrength
 
@@ -339,7 +330,6 @@ local function performFling(targetPlayer)
 		repeat
 			if not tHrp or not tHrp.Parent or not hrp.Parent then break end
 
-			-- Über/Unter-Oszillation für maximale Physik-Interaktion (aus SkidFling)
 			angle = angle + 120
 
 			local cfA = CFrame.new(tHrp.Position) * CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0)
@@ -358,13 +348,11 @@ local function performFling(targetPlayer)
 	end)
 	if not ok then warn("performFling:", err) end
 
-	-- Aufräumen
 	pcall(function() bv:Destroy() end)
 	pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true) end)
 	workspace.Gravity = savedGrav
 	workspace.FallenPartsDestroyHeight = oldFPDH
 
-	-- Nahtlos zur alten Position zurückkehren
 	pcall(function()
 		if not hrp or not hrp.Parent then return end
 		hrp.CFrame      = oldPos * CFrame.new(0, 0.5, 0)
@@ -530,9 +518,6 @@ local function isInGarden(t)
 	return p and p:GetAttribute("IsInOwnGarden") == true
 end
 
--- Besten Spieler (für stealBest) finden — UNABHÄNGIG von Gartenstatus.
--- Gibt den Spieler mit dem wertvollsten reifen Obst zurück, damit wir wissen,
--- wen wir flingen ODER bestehlen sollen.
 local function findBestTargetPlayer()
 	if bestCache and bestCache.plr and bestCache.plr.Parent
 	   and os.clock() - bestCacheT < BEST_TTL then
@@ -560,7 +545,6 @@ local function findBestTargetPlayer()
 	return bPlr
 end
 
--- Stählbare Frucht von einem Spieler holen (PP muss aktiv/aktivierbar sein)
 local function getStealableFruit(plr)
 	if not plr then return nil end
 	local garden = getTargetGarden(plr.Name); if not garden then return nil end
@@ -574,7 +558,7 @@ local function getStealableFruit(plr)
 					local v = getFruitValue(tf)
 					if v > bestV then bestV = v; bestFruit = tf end
 				else
-					return tf  -- Für stealTarget: erstes valides reicht
+					return tf
 				end
 			end
 		end
@@ -648,21 +632,18 @@ task.spawn(function()
 
 			if targetPlr then
 				if isInGarden(targetPlr) then
-					-- Im Garten → kann nicht bestohlen werden
 					if flingOnGarden and night.Value and not isFlingling then
-						-- Aus dem Garten flingen! Dann sofort Steal-Check
-						bestCache = nil  -- Danach neu bewerten
+						bestCache = nil
 						task.spawn(function()
 							local ok, err = pcall(performFling, targetPlr)
 							if not ok then warn("auto-fling:", err); isFlingling = false end
 						end)
-						task.wait(3.2)  -- Fling-Zyklus abwarten (2.5s Loop + Buffer)
+						task.wait(3.2)
 					else
 						task.wait(1.0)
 					end
 
 				elseif night.Value then
-					-- Außerhalb des Gartens bei Nacht → stehlen
 					if maxInventory() then
 						pcall(goToSpawnAndComplete); task.wait(1)
 					else
@@ -683,7 +664,6 @@ task.spawn(function()
 						end
 					end
 				else
-					-- Tag → warten
 					task.wait(1.0)
 				end
 			else
@@ -698,9 +678,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- TASK: UTILITY LOOP (noclip, speed)
--- ============================================================
 task.spawn(function()
 	while task.wait() do
 		if noclip then noclipLoop() end
@@ -742,9 +719,6 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- TASK: MANUELLER FLING (separater Toggle, unabhängig vom Steal)
--- ============================================================
 task.spawn(function()
 	while true do
 		task.wait(0.2)
