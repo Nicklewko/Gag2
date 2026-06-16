@@ -140,11 +140,10 @@ local stealBest             = false
 -- Fling
 local flingEnabled          = false
 local flingTarget           = nil
-local flingStrength         = 1      -- 1–10 (1 = originale SkidFling-Stärke)
-local flingOnGarden         = false  -- auto-fling wenn Target im Garten
-local isFlingling           = false  -- Mutex
+local flingStrength         = 1
+local flingOnGarden         = false
+local isFlingling           = false
 
--- Nearby-Steal Radius (Studs): wie weit Früchte von der Hauptfrucht entfernt sein dürfen
 local STEAL_NEARBY_RADIUS = 15
 
 -- ============================================================
@@ -392,13 +391,13 @@ local function collect(p, maxAtt)
 	end
 	if not prompt then return end
 	maxAtt = maxAtt or 700
-	prompt.HoldDuration = 0
 	local savedGrav = workspace.Gravity; workspace.Gravity = 0
 	local oldPos = char:GetPivot()
 	local pos    = p:IsA("Model") and p:GetPivot().Position or p.Position
 	local conn   = moveTo(hrp, CFrame.new(pos - Vector3.new(0, 4, 0)))
 	local att    = 0
 	local ok, err = pcall(function()
+		prompt.HoldDuration = 0
 		while prompt.Parent and att < maxAtt do
 			att = att + 1; fireproximityprompt(prompt); noclipLoop(); task.wait(0.1)
 		end
@@ -444,7 +443,7 @@ local function steal(fruit, owner)
 			fireproximityprompt(pp)
 			if owner then Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId) end
 			noclipLoop()
-			task.wait(0.15)
+			task.wait(0.1)
 		until att >= 3 or not pp.Parent
 
 		if att >= 3 then
@@ -634,7 +633,16 @@ local function stealNearbyFruits(centerPos, ownerPlr)
 		if not tf or not tf.Parent then continue end
 		local tfId = tf:GetAttribute("FruitId")
 		if not stealBest or not stealTarget or not stealTargetToggled then return end
-		local ok2, res2 = pcall(steal, tf, ownerPlr, entry.tries)
+		local ok2, res2 = pcall(function()
+			local att = 0
+			repeat
+				att = att + 1
+				fireproximityprompt(pp)
+				noclipLoop()
+				task.wait(0.1)
+			until att >= 3 or not pp.Parent
+		end)
+		--local ok2, res2 = pcall(steal, tf, ownerPlr, entry.tries)
 		if not ok2 then
 			stealBlacklist[tf] = true
 			if tfId then stealBlacklistIds[tfId] = true end
@@ -785,7 +793,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- TASK: UTILITY (noclip, speed)
+-- TASK: UTILITY
 -- ============================================================
 task.spawn(function()
 	while task.wait() do
