@@ -5,7 +5,10 @@ local CoreGui = game:GetService("CoreGui")
 
 local Networking    = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData      = require(ReplicatedStorage.SharedModules.SeedData)
+local PetData 		= require(ReplicatedStorage.SharedData.PetData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
+
+local WildPetSpawns = workspace.Map.WildPetSpawns
 
 -- MutationData
 local MutationData
@@ -468,7 +471,7 @@ end
 -- QUEUE
 -- ============================================================
 local function sortQueue()
-	table.sort(queue, function(a, b) return a.t < b.t end)
+	table.sort(queue, function(a, b) return a.t > b.t end)
 end
 local function removeTier(tier)
 	for i = #queue, 1, -1 do if queue[i].t == tier then table.remove(queue, i) end end
@@ -479,6 +482,14 @@ local function addQueue(p, tier)
 end
 local function loopAdd(f, tier)
 	for _, item in pairs(f:GetChildren()) do addQueue(item, tier) end
+end
+local function findEntry(tbl, model, tier)
+    for i, v in ipairs(tbl) do
+        if v.m == model and v.t == tier then
+            return i
+        end
+    end
+    return nil
 end
 
 -- ============================================================
@@ -502,6 +513,14 @@ local function getGearList()
 	local st = {}
 	local ok, items = pcall(function() return ReplicatedStorage.StockValues.GearShop.Items:GetChildren() end)
 	if ok and items then for _, d in pairs(items) do if d.Name then st[#st + 1] = d.Name end end end
+	return st
+end
+
+local function getPetList()
+	local st = {}
+	for _, d in pairs(PetData) do
+		if d.DisplayName then st[#st + 1] = d.DisplayName end
+	end
 	return st
 end
 
@@ -607,16 +626,34 @@ for _, v in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
 end
 
 -- ============================================================
--- TASK: INTEGRIERTER STEAL + AUTO-FLING LOOP
---
--- Logik:
---   stealBest / stealTarget aktiv
---     → Target im Garten + Nacht + flingOnGarden
---         → performFling → nach Fling ggf. direkt stehlen
---     → Target außerhalb + Nacht
---         → steal + goToSpawnAndComplete
---     → Tag
---         → warten
+-- PETS
+-- ============================================================
+
+local autoBuyPets           = false
+local autoBuySelectedPet    = {}
+
+local function addPetToQueue(p)
+	local n = p:GetAttribute("PetName")
+	if not n then return end
+	local s = autoBuySelectedPet[n]
+	if not s then return end
+	local a = findEntry(queue, p, 3)
+	if a then return end
+	addQueue(p, 3)
+end
+
+WildPetSpawns.ChildAdded:Connect(function(p)
+	addPetToQueue(p)
+end)
+
+local function addAllPetsToQueue()
+	for _, pet in pairs(WildPetSpawns:GetChildren()) do
+		addQueue(pet)
+	end
+end
+
+-- ============================================================
+-- STEAL
 -- ============================================================
 task.spawn(function()
 	while true do
@@ -902,10 +939,10 @@ VisualTab:CreateToggle({ Name="Predict Stocks", CurrentValue=false, Flag="predic
 -- ---- Pets ----
 PetTab:CreateSection("Auto Buy")
 PetTab:CreateToggle({ Name="Buy Pets", CurrentValue=autoBuyPets, Flag="buypets",
-	Callback=function(v) autoBuyPets=v end })
-PetTab:CreateDropdown({ Name="Select Pets", Options={}, CurrentOption={},
+	Callback=function(v) autoBuyPets=v; if v then addAllPetsToQueue() end end })
+PetTab:CreateDropdown({ Name="Select Pets", Options=getPetList(), CurrentOption={},
 	MultipleOptions=true, Flag="autobuypetsselect",
-	Callback=function(o) autoBuySelectedPet=o end })
+	Callback=function(o) autoBuySelectedPet=o; addAllPetsToQueue() end })
 
 -- ============================================================
 -- PLAYER LIST REFRESH
