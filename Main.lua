@@ -145,7 +145,7 @@ local flingOnGarden         = false  -- auto-fling wenn Target im Garten
 local isFlingling           = false  -- Mutex
 
 -- Nearby-Steal Radius (Studs): wie weit Früchte von der Hauptfrucht entfernt sein dürfen
-local STEAL_NEARBY_RADIUS = 20
+local STEAL_NEARBY_RADIUS = 15
 
 -- ============================================================
 -- ESP FOLDER
