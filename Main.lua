@@ -892,29 +892,14 @@ local VisualTab = Window:CreateTab("Visual", 4483362458)
 InfoTab:CreateSection("About")
 InfoTab:CreateLabel("Astro Hub — Grow a Garden Script")
 InfoTab:CreateParagraph({
-	Title="Steal",
-	Content="Steal Best: automatically targets the player with the highest-value ripe fruit across all gardens.\nSteal Target: targets a specific player.\nNearest-first nearby steal runs after every main steal pick-up."
-})
-InfoTab:CreateParagraph({
-	Title="Auto-Fling",
-	Content="If the target is in their garden (= safe zone), they get flung out so stealing can resume. Works for both Steal Best and Steal Target. Adjustable strength 1–10."
-})
-InfoTab:CreateParagraph({
-	Title="Auto",
-	Content="Collect Dropped Items / Seeds, Auto Sell at configurable inventory size, Auto Buy Seeds & Gear on restock, Auto Collect own ripe fruits with optional mutation filter and value range."
-})
-InfoTab:CreateParagraph({
-	Title="Pets",
-	Content="Automatically collects selected wild pets as they spawn. Select pets in the dropdown and enable Buy Pets."
-})
-InfoTab:CreateParagraph({
-	Title="Visual / Player",
-	Content="Fruit ESP shows value labels above all ripe fruits (configurable min value). Noclip, Walk Speed, Jump Height, Anti-AFK."
+	Title="Discord:",
+	Content="https://discord.gg/VEGdZccS"
 })
 InfoTab:CreateSection("Hotkeys")
 InfoTab:CreateLabel("K — Toggle UI")
 
 -- ---- Player ----
+PlayerTab:CreateSection("Main")
 PlayerTab:CreateToggle({ Name="Noclip", CurrentValue=noclip, Flag="noclip",
 	Callback=function(v) noclip=v end })
 PlayerTab:CreateSlider({ Name="Walk Speed", Range={0,100}, Increment=1,
@@ -923,6 +908,10 @@ PlayerTab:CreateSlider({ Name="Walk Speed", Range={0,100}, Increment=1,
 PlayerTab:CreateSlider({ Name="Jump Height", Range={0,50}, Increment=0.5,
 	CurrentValue=jumpH, Flag="jumph",
 	Callback=function(v) jumpH=v end })
+
+PlayerTab:CreateSection("Misc")
+PlayerTab:CreateToggle({ Name="Anti-AFK (WIP)", CurrentValue=antiAfk, Flag="antiafk",
+	Callback=function(v) antiAfk=v end })
 
 -- ---- Steal ----
 StealTab:CreateSection("Steal Best")
@@ -964,8 +953,6 @@ AutoTab:CreateToggle({ Name="Collect Dropped Items", CurrentValue=collectDropped
 	Callback=function(v) collectDropped=v; if v then loopAdd(dropped,1) else removeTier(1) end end })
 AutoTab:CreateToggle({ Name="Collect Seeds", CurrentValue=collectSeeds, Flag="autocollectseeds",
 	Callback=function(v) collectSeeds=v; if v then loopAdd(seeds,2) else removeTier(2) end end })
-AutoTab:CreateToggle({ Name="Anti-AFK", CurrentValue=antiAfk, Flag="antiafk",
-	Callback=function(v) antiAfk=v end })
 
 AutoTab:CreateSection("Selling")
 AutoTab:CreateToggle({ Name="Auto Sell", CurrentValue=autoSell, Flag="autosell",
