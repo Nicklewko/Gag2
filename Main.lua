@@ -153,6 +153,27 @@ do
 	}
 end
 
+local function printTable(tbl, indent)
+	indent = indent or 0
+
+	if typeof(tbl) ~= "table" then
+		print(tbl)
+		return
+	end
+
+	for key, value in pairs(tbl) do
+		local spacing = string.rep("    ", indent)
+
+		if typeof(value) == "table" then
+			print(spacing .. tostring(key) .. " = {")
+			PrintTable(value, indent + 1)
+			print(spacing .. "}")
+		else
+			print(spacing .. tostring(key) .. " = " .. tostring(value))
+		end
+	end
+end
+
 -- FruitValueCalc
 local FruitValueCalc
 do
@@ -828,7 +849,9 @@ task.spawn(function()
 				task.wait(0.5)
 			end
 		elseif not isFlingling and #queue > 0 then
+			printTable(queue)
 			local item = table.remove(queue, 1)
+			printTable(item)
 			if item and item.m and item.m.Parent then pcall(collect, item.m, item.mA) end
 		end
 		task.wait()
