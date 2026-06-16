@@ -750,13 +750,26 @@ player:GetAttributeChangedSignal("FruitCount"):Connect(sellAll)
 
 local function buySeeds(name, amt)
 	if not autoBuy or not table.find(autoBuySelected, name) then return end
-	for _ = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name) end
+	task.spawn(function()
+		for _ = 1, amt do Networking.SeedShop.PurchaseSeed:Fire(name); task.wait(0.1) end
+	end)
+end
+local function buyAllSeeds()
+	for _, i in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
+		buySeeds(i.Name, i.Value)
+	end
 end
 local function buyGear(name, amt)
 	if not autoBuyGear or not table.find(autoBuySelectedGear, name) then return end
-	for _ = 1, amt do Networking.GearShop.PurchaseGear:Fire(name) end
+	task.spawn(function()
+		for _ = 1, amt do Networking.GearShop.PurchaseGear:Fire(name); task.wait(0.1) end
+	end)
 end
-
+local function buyAllGear()
+	for _, i in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
+		buyGear(i.Name, i.Value)
+	end
+end
 for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
 	v:GetPropertyChangedSignal("Value"):Connect(function()
 		buyGear(v.Name, v.Value)
@@ -1036,20 +1049,18 @@ AutoTab:CreateSlider({ Name="Sell at", Range={1,100}, Increment=1, Suffix="Fruit
 
 AutoTab:CreateSection("Buying")
 AutoTab:CreateDropdown({ Name="Select Seeds", Options=getSeedList(), CurrentOption={},
-	MultipleOptions=true, Flag="autobuyselected", Callback=function(o) autoBuySelected=o end })
+	MultipleOptions=true, Flag="autobuyselected", Callback=function(o) autoBuySelected=o; buyAllSeeds() end })
 AutoTab:CreateToggle({ Name="Auto Buy Seeds", CurrentValue=autoBuy, Flag="autobuyseeds",
 	Callback=function(v)
 		autoBuy = v
-		if v then for _, i in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
-			buySeeds(i.Name, i.Value) end end
+		if v then buyAllSeeds() end
 	end })
 AutoTab:CreateDropdown({ Name="Select Gear", Options=getGearList(), CurrentOption={},
-	MultipleOptions=true, Flag="autobuygearselected", Callback=function(o) autoBuySelectedGear=o end })
+	MultipleOptions=true, Flag="autobuygearselected", Callback=function(o) autoBuySelectedGear=o; buyAllGear() end })
 AutoTab:CreateToggle({ Name="Auto Buy Gear", CurrentValue=autoBuyGear, Flag="autobuygear",
 	Callback=function(v)
 		autoBuyGear = v
-		if v then for _, i in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
-			buyGear(i.Name, i.Value) end end
+		if v then buyAllGear() end
 	end })
 
 AutoTab:CreateSection("Own")
