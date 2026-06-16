@@ -617,7 +617,7 @@ local function stealNearbyFruits(centerPos, ownerPlr)
 			if not nhp then continue end
 			local d = (nhp.Position - centerPos).Magnitude
 			if d <= STEAL_NEARBY_RADIUS then
-				table.insert(candidates, { fruit = tf, dist = d, tries = 3 })
+				table.insert(candidates, { fruit = tf, dist = d, tries = 2 })
 			end
 		end
 	end
