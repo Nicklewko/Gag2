@@ -699,13 +699,11 @@ end)
 -- PETS
 -- ============================================================
 local function addPetToQueue(p)
-	task.delay(10, function()
-		if not autoBuyPets then return end
-		local n = p:GetAttribute("PetName")
-		if not n or not table.find(autoBuySelectedPet, n) then return end
-		if findEntry(queue, p, 3) then return end
-		addQueue(p, 3, 10)
-	end)
+	if not autoBuyPets then return end
+	local n = p:GetAttribute("PetName")
+	if not n or not table.find(autoBuySelectedPet, n) then return end
+	if findEntry(queue, p, 3) then return end
+	addQueue(p, 3, 8)
 end
 
 WildPetSpawns.ChildAdded:Connect(addPetToQueue)
