@@ -443,7 +443,7 @@ local function steal(fruit, owner)
 			fireproximityprompt(pp)
 			if owner then Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId) end
 			noclipLoop()
-			task.wait(0.1)
+			task.wait(0.2)
 		until att >= 3 or not pp.Parent
 
 		if att >= 3 then
@@ -633,16 +633,7 @@ local function stealNearbyFruits(centerPos, ownerPlr)
 		if not tf or not tf.Parent then continue end
 		local tfId = tf:GetAttribute("FruitId")
 		if not stealBest or not stealTarget or not stealTargetToggled then return end
-		local ok2, res2 = pcall(function()
-			local att = 0
-			repeat
-				att = att + 1
-				fireproximityprompt(pp)
-				noclipLoop()
-				task.wait(0.1)
-			until att >= 3 or not pp.Parent
-		end)
-		--local ok2, res2 = pcall(steal, tf, ownerPlr, entry.tries)
+		local ok2, res2 = pcall(steal, tf, ownerPlr, entry.tries)
 		if not ok2 then
 			stealBlacklist[tf] = true
 			if tfId then stealBlacklistIds[tfId] = true end
