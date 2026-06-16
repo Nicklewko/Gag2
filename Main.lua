@@ -827,7 +827,11 @@ task.spawn(function()
 			else
 				task.wait(0.5)
 			end
-
+		elseif not isFlinging and #petQueue > 0 then
+			if petQueue[1] then
+				collect(table.remove(petQueue[1], 10))
+				continue
+			end
 		elseif not isFlingling and #queue > 0 then
 			local item = table.remove(queue, 1)
 			if item and item.m and item.m.Parent then pcall(collect, item.m) end
@@ -853,11 +857,7 @@ end)
 task.spawn(function()
 	while true do
 		task.wait()
-		if not autoCollect or not plot or not autoBuyPets or maxInventory() then continue end
-		if petQueue[1] then
-			collect(table.remove(petQueue[1], 1))
-			continue
-		end
+		if not autoCollect or not plot or maxInventory() then continue end
 		local pPlants = plot:FindFirstChild("Plants"); if not pPlants then continue end
 		for _, plant in pairs(pPlants:GetChildren()) do
 			if not autoCollect then break end
