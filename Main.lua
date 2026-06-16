@@ -518,7 +518,7 @@ local function collect(p, maxAtt)
 	local ok, err = pcall(function()
 		while prompt.Parent do
 			if maxAtt and att >= maxAtt then break end
-			att = att + 1; fireproximityprompt(prompt); noclipLoop(); task.wait()
+			att = att + 1; fireproximityprompt(prompt); noclipLoop(); task.wait(0.1)
 		end
 	end)
 	conn:Disconnect(); char:PivotTo(oldPos); workspace.Gravity = savedGrav
