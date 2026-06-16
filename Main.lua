@@ -946,5 +946,3 @@ game.Players.PlayerAdded:Connect(refreshPlayerLists)
 game.Players.PlayerRemoving:Connect(refreshPlayerLists)
 
 Rayfield:LoadConfiguration()
-ENDOFSCRIPT
-echo "Zeilen: $(wc -l < /mnt/user-data/outputs/astro_hub.lua)"
