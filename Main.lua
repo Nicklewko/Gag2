@@ -145,7 +145,7 @@ local flingOnGarden         = false  -- auto-fling wenn Target im Garten
 local isFlingling           = false  -- Mutex
 
 -- Nearby-Steal Radius (Studs): wie weit Früchte von der Hauptfrucht entfernt sein dürfen
-local STEAL_NEARBY_RADIUS = 40
+local STEAL_NEARBY_RADIUS = 20
 
 -- ============================================================
 -- ESP FOLDER
@@ -399,7 +399,6 @@ local function collect(p, maxAtt)
 	local conn   = moveTo(hrp, CFrame.new(pos - Vector3.new(0, 4, 0)))
 	local att    = 0
 	local ok, err = pcall(function()
-		-- FIX: Vereinfachte Schleifenbedingung (vorher redundantes 'or false')
 		while prompt.Parent and att < maxAtt do
 			att = att + 1; fireproximityprompt(prompt); noclipLoop(); task.wait(0.1)
 		end
@@ -409,7 +408,7 @@ local function collect(p, maxAtt)
 end
 
 -- ============================================================
--- STEAL (Fix: kein redundanter initialer Fire mehr)
+-- STEAL
 -- ============================================================
 local function steal(fruit, owner)
 	if not isValidFruit(fruit) then return false end
@@ -432,10 +431,11 @@ local function steal(fruit, owner)
 	local success   = false
 
 	local ok, err = pcall(function()
-		-- FIX: Redundanter initialer fireproximityprompt(pp, HoldDuration) entfernt.
-		-- Direkt HoldDuration=0 setzen und kurz warten bis Teleport greift.
+		fireproximityprompt(pp, pp.HoldDuration + 0.1)
+		task.wait(pp.HoldDuration)
 		pp.HoldDuration = 0
 		task.wait(0.05)
+			
 		noclipLoop()
 
 		local att = 0
@@ -464,57 +464,6 @@ local function steal(fruit, owner)
 end
 
 -- ============================================================
--- STEAL NEARBY: Nach dem Haupt-Steal alle Früchte im Radius stehlen.
--- Sortiert nach Distanz zur Hauptfrucht → nächste zuerst.
--- Bricht ab wenn Inventar voll oder keine validen Früchte mehr.
--- ============================================================
-local function stealNearbyFruits(centerPos, ownerPlr)
-	if maxInventory() or not centerPos or not ownerPlr then return end
-	-- Prüfen ob Owner noch draußen ist (könnte zurück ins Garden gegangen sein)
-	local ownerAttr = ownerPlr:GetAttribute("IsInOwnGarden")
-	if ownerAttr == true then return end
-
-	local garden = getTargetGarden(ownerPlr.Name)
-	if not garden then return end
-
-	-- Kandidaten sammeln und nach Distanz sortieren
-	local candidates = {}
-	for _, target in pairs(garden.Plants:GetChildren()) do
-		local fruits = target:FindFirstChild("Fruits")
-		local list   = fruits and fruits:GetChildren() or {target}
-		for _, tf in ipairs(list) do
-			if not isValidFruit(tf) then continue end
-			local nhp = tf:FindFirstChild("HarvestPart")
-			if not nhp then continue end
-			local d = (nhp.Position - centerPos).Magnitude
-			if d <= STEAL_NEARBY_RADIUS then
-				table.insert(candidates, { fruit = tf, dist = d })
-			end
-		end
-	end
-
-	-- Nächste zuerst
-	table.sort(candidates, function(a, b) return a.dist < b.dist end)
-
-	for _, entry in ipairs(candidates) do
-		if maxInventory() then break end
-		-- Erneut prüfen ob Owner noch draußen
-		if ownerPlr:GetAttribute("IsInOwnGarden") == true then break end
-
-		local tf = entry.fruit
-		if not tf or not tf.Parent then continue end
-		local tfId = tf:GetAttribute("FruitId")
-		local ok2, res2 = pcall(steal, tf, ownerPlr)
-		if not ok2 then
-			warn("stealNearby:", res2)
-			stealBlacklist[tf] = true
-			if tfId then stealBlacklistIds[tfId] = true end
-			valueCache[tf] = nil
-			-- Weiter mit nächster Frucht, nicht abbrechen
-		end
-	end
-end
-
 local function goToSpawnAndComplete()
 	local char, hrp = getCharacter()
 	if not char or not hrp then return end
@@ -532,7 +481,6 @@ end
 -- QUEUE
 -- ============================================================
 local function sortQueue()
-	-- Höhere Tier-Nummer = höhere Priorität (Pets > Seeds > Drops)
 	table.sort(queue, function(a, b) return a.t > b.t end)
 end
 local function removeTier(tier)
@@ -595,7 +543,6 @@ local function isInGarden(t)
 	return p and p:GetAttribute("IsInOwnGarden") == true
 end
 
--- Besten Spieler finden (UNABHÄNGIG von Gartenstatus — für Fling + Steal)
 local function findBestTargetPlayer()
 	if bestCache and bestCache.plr and bestCache.plr.Parent
 	   and os.clock() - bestCacheT < BEST_TTL then
@@ -623,7 +570,6 @@ local function findBestTargetPlayer()
 	return bPlr
 end
 
--- Beste stählbare Frucht (PP aktiv) von einem Spieler holen
 local function getStealableFruit(plr)
 	if not plr then return nil end
 	local garden = getTargetGarden(plr.Name); if not garden then return nil end
@@ -637,7 +583,7 @@ local function getStealableFruit(plr)
 					local v = getFruitValue(tf)
 					if v > bestV then bestV = v; bestFruit = tf end
 				else
-					return tf  -- Für stealTarget: erste valide reicht
+					return tf
 				end
 			end
 		end
@@ -650,6 +596,49 @@ local function maxInventory()
 	local current = player:GetAttribute("FruitCount")
 	if not maxSize or not current then return false end
 	return current >= maxSize - 1
+end
+
+local function stealNearbyFruits(centerPos, ownerPlr)
+	if maxInventory() or not centerPos or not ownerPlr then return end
+
+	local ownerAttr = ownerPlr:GetAttribute("IsInOwnGarden")
+	if ownerAttr == true then return end
+
+	local garden = getTargetGarden(ownerPlr.Name)
+	if not garden then return end
+
+	local candidates = {}
+	for _, target in pairs(garden.Plants:GetChildren()) do
+		local fruits = target:FindFirstChild("Fruits")
+		local list   = fruits and fruits:GetChildren() or {target}
+		for _, tf in ipairs(list) do
+			if not isValidFruit(tf) then continue end
+			local nhp = tf:FindFirstChild("HarvestPart")
+			if not nhp then continue end
+			local d = (nhp.Position - centerPos).Magnitude
+			if d <= STEAL_NEARBY_RADIUS then
+				table.insert(candidates, { fruit = tf, dist = d })
+			end
+		end
+	end
+
+	table.sort(candidates, function(a, b) return a.dist < b.dist end)
+
+	for _, entry in ipairs(candidates) do
+		if maxInventory() then break end
+		if ownerPlr:GetAttribute("IsInOwnGarden") == true then break end
+
+		local tf = entry.fruit
+		if not tf or not tf.Parent then continue end
+		local tfId = tf:GetAttribute("FruitId")
+		local ok2, res2 = pcall(steal, tf, ownerPlr)
+		if not ok2 then
+			warn("stealNearby:", res2)
+			stealBlacklist[tf] = true
+			if tfId then stealBlacklistIds[tfId] = true end
+			valueCache[tf] = nil
+		end
+	end
 end
 
 -- ============================================================
