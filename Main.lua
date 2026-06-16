@@ -3,7 +3,6 @@
 -- ============================================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Cached globals (reduces table lookups in hot loops → obfuscation-safe perf)
 local RunService   = game:GetService("RunService")
 local RepStore     = game:GetService("ReplicatedStorage")
 local CoreGui      = game:GetService("CoreGui")
@@ -446,11 +445,13 @@ local function steal(fruit, owner)
 	return ok2
 end
 
--- ============================================================
--- STEAL NEARBY  (FIX: removed wrong guard condition, fixed steal call)
--- After main steal: grab all valid fruits within NEARBY_R studs.
--- Sorted nearest-first. Stops if target re-enters garden.
--- ============================================================
+local function maxInventory()
+	local ms=player:GetAttribute("MaxFruitCapacity")
+	local cur=player:GetAttribute("FruitCount")
+	if not ms or not cur then return false end
+	return cur>=ms-1
+end
+
 local function stealNearby(centerPos, ownerPlr)
 	if not centerPos or not ownerPlr then return end
 	if ownerPlr:GetAttribute("IsInOwnGarden")==true then return end
@@ -505,13 +506,6 @@ local function goToSpawn()
 	local conn=moveTo(hrp,tCF)
 	tw(0.02); Networking.Steal.CompleteSteal:Fire(); tw(0.06)
 	conn:Disconnect(); workspace.Gravity=oldG
-end
-
-local function maxInventory()
-	local ms=player:GetAttribute("MaxFruitCapacity")
-	local cur=player:GetAttribute("FruitCount")
-	if not ms or not cur then return false end
-	return cur>=ms-1
 end
 
 -- ============================================================
@@ -661,7 +655,6 @@ for _,v in pairs(RepStore.StockValues.SeedShop.Items:GetChildren()) do
 	end)
 end
 
--- Periodic restock refresh
 ts(function() while true do tw(90); buyAllGear(); buyAllSeeds() end end)
 
 -- ============================================================
@@ -684,7 +677,7 @@ end
 -- ============================================================
 ts(function()
 	while true do
-		tw(840)  -- jump every 14 min (before 20-min kick)
+		tw(840)
 		if antiAfk then
 			local char=player.Character
 			if char then
