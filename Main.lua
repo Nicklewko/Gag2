@@ -849,9 +849,7 @@ task.spawn(function()
 				task.wait(0.5)
 			end
 		elseif not isFlinging and #queue > 0 then
-			printTable(queue)
 			local item = table.remove(queue, 1)
-			printTable(item)
 			if item and item.m and item.m.Parent then pcall(collect, item.m, item.mA) end
 		end
 		task.wait()
