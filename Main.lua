@@ -698,7 +698,7 @@ for _, v in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
 end
 
 task.spawn(function()
-	while task.wait(90) then
+	while task.wait(90) do
 		buyAllGear()
 		buyAllSeeds()
 	end
