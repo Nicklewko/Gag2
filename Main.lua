@@ -712,6 +712,12 @@ local function addAllPetsToQueue()
 	for _, pet in pairs(WildPetSpawns:GetChildren()) do addPetToQueue(pet) end
 end
 
+task.spawn(function()
+	while task.wait(10) do
+		addAllPetsToQueue()
+	end
+end)
+
 -- ============================================================
 task.spawn(function()
 	while true do
