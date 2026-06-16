@@ -772,9 +772,6 @@ local function addAllPetsToQueue()
 	end
 end
 
-local function collectPet(p)
-	
-
 -- ============================================================
 -- STEAL
 -- ============================================================
