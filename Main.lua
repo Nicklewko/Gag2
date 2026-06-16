@@ -3,8 +3,8 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 
-local Networking = require(ReplicatedStorage.SharedModules.Networking)
-local SeedData   = require(ReplicatedStorage.SharedModules.SeedData)
+local Networking    = require(ReplicatedStorage.SharedModules.Networking)
+local SeedData      = require(ReplicatedStorage.SharedModules.SeedData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
 
 -- MutationData
@@ -30,19 +30,15 @@ end
 -- FruitValueCalc
 local FruitValueCalc
 do
-	local SIZE_EXP_DEFAULT    = 2.65
-	local SIZE_EXP_OVERRIDES  = { Mushroom = 1.9, Bamboo = 1.75 }
+	local SIZE_EXP_DEFAULT     = 2.65
+	local SIZE_EXP_OVERRIDES   = { Mushroom = 1.9, Bamboo = 1.75 }
 	local SINGLE_HARVEST_SCALE = 0.15
-	local DR_ENABLED = true
-	local DR_KNEE    = 5
-	local DR_TAIL    = 1.5
+	local DR_ENABLED = true; local DR_KNEE = 5; local DR_TAIL = 1.5
 	local MIN_VALUES = { Carrot = 4 }
-
 	local singleHarvest = {}
 	for _, d in pairs(SeedData) do
 		if d.SeedName then singleHarvest[d.SeedName] = d.IsSingleHarvest == true end
 	end
-
 	FruitValueCalc = function(fruitName, sizeMultiplier, mutation, playerInst, decayAlpha)
 		sizeMultiplier = sizeMultiplier or 1
 		local exp = SIZE_EXP_OVERRIDES[fruitName] or SIZE_EXP_DEFAULT
@@ -55,11 +51,8 @@ do
 		local mm = 1
 		if mutation and mutation ~= "" then
 			local rm = MutationData.ReturnPriceMultiplier(mutation)
-			if singleHarvest[fruitName] and rm > 1 then
-				mm = 1 + (rm - 1) * SINGLE_HARVEST_SCALE
-			else
-				mm = rm
-			end
+			if singleHarvest[fruitName] and rm > 1 then mm = 1 + (rm - 1) * SINGLE_HARVEST_SCALE
+			else mm = rm end
 		end
 		local dm = 1
 		if type(decayAlpha) == "number" and decayAlpha > 0 then
@@ -82,8 +75,7 @@ local function getFruitSizeMultiplier(fruit)
 		if ok and type(s) == "number" and s > 0 and math.abs(s - 1) > 0.001 then return s end
 		if fruit.PrimaryPart then
 			local sz = fruit.PrimaryPart.Size
-			local avg = (sz.X + sz.Y + sz.Z) / 3
-			if avg > 0.1 then return avg end
+			return (sz.X + sz.Y + sz.Z) / 3
 		end
 	end
 	return 1
@@ -103,49 +95,47 @@ local seeds   = workspace.Map.SeedPackSpawnServerLocations
 -- ============================================================
 -- STATE
 -- ============================================================
-local collectSeeds           = false
-local collectDropped         = false
-local autoSell               = false
-local autoSellInventorySize  = 100
-local autoBuy                = false
-local autoBuySelected        = {}
-local autoBuyGear            = false
-local autoBuySelectedGear    = {}
-local autoBuyPets            = false
-local autoBuySelectedPet     = {}
-local autoCollect            = false
-local collectMutation        = false
-local autoCollectMinValue    = 0
-local autoCollectMaxValue    = 1000000
-local espEnabled             = false
-local espMinValue            = 0
-local activeESPs             = {}
-local activeESPValues        = {}
-local noclip                 = false
-local walkSpeed              = 16
-local jumpHeight             = 7.5
-local stealTarget            = nil
-local stealTargetToggled     = false
-local antiSteal              = false
-local stealBest              = false
-local autoFlingTarget        = false
+local collectSeeds          = false
+local collectDropped        = false
+local autoSell              = false
+local autoSellInventorySize = 100
+local autoBuy               = false
+local autoBuySelected       = {}
+local autoBuyGear           = false
+local autoBuySelectedGear   = {}
+local autoBuyPets           = false
+local autoBuySelectedPet    = {}
+local autoCollect           = false
+local collectMutation       = false
+local autoCollectMinValue   = 0
+local autoCollectMaxValue   = 1000000
+local espEnabled            = false
+local espMinValue           = 0
+local activeESPs            = {}
+local activeESPValues       = {}
+local noclip                = false
+local walkSpeed             = 16
+local jumpHeight            = 7.5
+local stealTarget           = nil
+local stealTargetToggled    = false
+local antiSteal             = false
+local stealBest             = false
 -- Fling
-local flingEnabled           = false
-local flingTarget            = nil
+local flingEnabled          = false  -- manueller Fling
+local flingTarget           = nil
+local flingStrength         = 1      -- 1–10 (1 = original SkidFling-Stärke)
+local flingOnGarden         = false  -- auto-fling wenn Target im Garten (gilt für steal best + target)
+local isFlingling           = false  -- Mutex: verhindert doppelten Fling
 
 -- ============================================================
 -- ESP FOLDER
 -- ============================================================
 local espParent
-if pcall(function() return CoreGui.Name end) then
-	espParent = CoreGui
-else
-	espParent = player:WaitForChild("PlayerGui")
-end
+if pcall(function() return CoreGui.Name end) then espParent = CoreGui
+else espParent = player:WaitForChild("PlayerGui") end
 if espParent:FindFirstChild("G2HFruitESP") then espParent.G2HFruitESP:Destroy() end
 local espFolder = Instance.new("Folder")
-espFolder.Name   = "G2HFruitESP"
-espFolder.Parent = espParent
+espFolder.Name = "G2HFruitESP"; espFolder.Parent = espParent
 
 -- ============================================================
 -- GARDEN / PLOT INIT
@@ -154,10 +144,7 @@ local function waitForAttribute(inst, attr, timeout)
 	timeout = timeout or 30
 	local t0 = tick()
 	local v = inst:GetAttribute(attr)
-	while v == nil and tick() - t0 < timeout do
-		task.wait(0.5)
-		v = inst:GetAttribute(attr)
-	end
+	while v == nil and tick() - t0 < timeout do task.wait(0.5); v = inst:GetAttribute(attr) end
 	return v
 end
 
@@ -175,7 +162,7 @@ local stealBlacklistIds = {}
 local CACHE_TTL         = 8
 local valueCache        = setmetatable({}, {__mode = "k"})
 local ppCache           = setmetatable({}, {__mode = "k"})
-local bestCache         = nil
+local bestCache         = nil   -- { plr = Instance } oder nil
 local bestCacheT        = 0
 local BEST_TTL          = 1.5
 
@@ -192,7 +179,6 @@ end
 -- NOCLIP
 -- ============================================================
 local noclipParts = {}
-
 local function rebuildNoclipCache(char)
 	noclipParts = {}
 	if not char then return end
@@ -214,7 +200,7 @@ local function noclipLoop()
 end
 
 -- ============================================================
--- RAYFIELD UI
+-- RAYFIELD WINDOW
 -- ============================================================
 local Window = Rayfield:CreateWindow({
 	Name = "Astro Hub", Icon = 0,
@@ -259,7 +245,7 @@ local Window = Rayfield:CreateWindow({
 Rayfield:Notify({ Title = "Loading...", Content = "Please wait.", Duration = 5, Image = 4483362458 })
 
 -- ============================================================
--- HILFSFUNKTIONEN
+-- HELPERS
 -- ============================================================
 local function moveTo(hrp, targetCF)
 	return RunService.Heartbeat:Connect(function()
@@ -289,10 +275,8 @@ local function getFruitValue(fruit)
 	if c and os.clock() - c.t < CACHE_TTL then return c.v end
 	local name = fruit:GetAttribute("CorePartName") or fruit:GetAttribute("SeedName")
 	if not name then return 0 end
-	local size     = getFruitSizeMultiplier(fruit)
-	local mutation = fruit:GetAttribute("Mutation")
-	local decay    = fruit:GetAttribute("DecayAlpha")
-	local ok, v   = pcall(FruitValueCalc, name, size, mutation, player, decay)
+	local ok, v = pcall(FruitValueCalc, name, getFruitSizeMultiplier(fruit),
+		fruit:GetAttribute("Mutation"), player, fruit:GetAttribute("DecayAlpha"))
 	if not ok or type(v) ~= "number" then v = 0 end
 	valueCache[fruit] = { v = v, t = os.clock() }
 	return v
@@ -304,17 +288,104 @@ local function isValidFruit(fruit)
 	if fId and stealBlacklistIds[fId] then return false end
 	local hp, pp = getFruitHpPp(fruit)
 	if not hp or not pp or not pp.Enabled then return false end
-	local age    = fruit:GetAttribute("Age")
-	local maxAge = fruit:GetAttribute("MaxAge")
+	local age = fruit:GetAttribute("Age"); local maxAge = fruit:GetAttribute("MaxAge")
 	return age ~= nil and maxAge ~= nil and age >= maxAge
+end
+
+-- ============================================================
+-- FLING (angepasster SkidFling — nahtlos + einstellbare Stärke)
+-- Bewegt DEINEN Char zum Target → physikalische Kollision → schleudert
+-- Kehrt danach nahtlos zur Ausgangsposition zurück.
+-- Läuft im eigenen task.spawn → kein Konflikt mit steal/moveTo
+-- ============================================================
+local function performFling(targetPlayer)
+	if isFlingling then return end
+	isFlingling = true
+
+	local char, hrp = getCharacter()
+	if not char or not hrp then isFlingling = false; return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then isFlingling = false; return end
+
+	local tChar = targetPlayer.Character
+	if not tChar then isFlingling = false; return end
+	local tHum = tChar:FindFirstChildOfClass("Humanoid")
+	local tHrp = tHum and tHum.RootPart
+	if not tHrp then isFlingling = false; return end
+
+	-- Zustand sichern
+	local oldPos    = hrp.CFrame
+	local savedGrav = workspace.Gravity
+	local oldFPDH   = workspace.FallenPartsDestroyHeight
+
+	workspace.Gravity = 0
+	workspace.FallenPartsDestroyHeight = 0/0  -- Verhindert FallenParts-Zerstörung
+
+	-- BodyVelocity hält unseren Char stabil während der Fling-Schleife
+	local bv = Instance.new("BodyVelocity")
+	bv.Velocity = Vector3.zero
+	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	bv.Parent   = hrp
+
+	hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+
+	-- Stärke: 1 = original SkidFling (9e7), 10 = 10x stärker (9e8)
+	local BASE = 9e7 * flingStrength
+	local ROT  = 9e8 * flingStrength
+
+	local ok, err = pcall(function()
+		local t0    = tick()
+		local angle = 0
+		repeat
+			if not tHrp or not tHrp.Parent or not hrp.Parent then break end
+
+			-- Über/Unter-Oszillation für maximale Physik-Interaktion (aus SkidFling)
+			angle = angle + 120
+
+			local cfA = CFrame.new(tHrp.Position) * CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0)
+			hrp.CFrame      = cfA
+			hrp.Velocity    = Vector3.new(BASE, BASE * 10, BASE)
+			hrp.RotVelocity = Vector3.new(ROT, ROT, ROT)
+			task.wait()
+
+			if not tHrp.Parent or not hrp.Parent then break end
+			local cfB = CFrame.new(tHrp.Position) * CFrame.new(0, -1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0)
+			hrp.CFrame      = cfB
+			hrp.Velocity    = Vector3.new(BASE, BASE * 10, BASE)
+			hrp.RotVelocity = Vector3.new(ROT, ROT, ROT)
+			task.wait()
+		until tick() - t0 > 2.5 or not isFlingling
+	end)
+	if not ok then warn("performFling:", err) end
+
+	-- Aufräumen
+	pcall(function() bv:Destroy() end)
+	pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true) end)
+	workspace.Gravity = savedGrav
+	workspace.FallenPartsDestroyHeight = oldFPDH
+
+	-- Nahtlos zur alten Position zurückkehren
+	pcall(function()
+		if not hrp or not hrp.Parent then return end
+		hrp.CFrame      = oldPos * CFrame.new(0, 0.5, 0)
+		hrp.Velocity    = Vector3.zero
+		hrp.RotVelocity = Vector3.zero
+		for _, p in pairs(char:GetDescendants()) do
+			if p:IsA("BasePart") then
+				p.Velocity = Vector3.zero; p.RotVelocity = Vector3.zero
+			end
+		end
+	end)
+
+	isFlingling = false
 end
 
 -- ============================================================
 -- COLLECT
 -- ============================================================
 local function collect(p, maxAtt)
-	local char = getCharacter()
-	if not char or not char:FindFirstChild("Head") then return end
+	local char, hrp = getCharacter()
+	if not char or not hrp or not char:FindFirstChild("Head") then return end
 	if not p or not p.Parent then return end
 	local _, prompt = getFruitHpPp(p)
 	if not prompt then
@@ -323,141 +394,106 @@ local function collect(p, maxAtt)
 		end
 	end
 	if not prompt then return end
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if not hrp then return end
 	prompt.HoldDuration = 0
-	local savedGravity  = workspace.Gravity
-	workspace.Gravity   = 0
-	local oldPos    = char:GetPivot()
-	local pos       = p:IsA("Model") and p:GetPivot().Position or p.Position
-	local conn      = moveTo(hrp, CFrame.new(pos - Vector3.new(0, 4, 0)))
-	local att       = 0
-	local ok, err   = pcall(function()
+	local savedGrav = workspace.Gravity; workspace.Gravity = 0
+	local oldPos = char:GetPivot()
+	local pos    = p:IsA("Model") and p:GetPivot().Position or p.Position
+	local conn   = moveTo(hrp, CFrame.new(pos - Vector3.new(0, 4, 0)))
+	local att    = 0
+	local ok, err = pcall(function()
 		while prompt.Parent do
 			if maxAtt and att >= maxAtt then break end
-			att = att + 1
-			fireproximityprompt(prompt)
-			noclipLoop()
-			task.wait()
+			att = att + 1; fireproximityprompt(prompt); noclipLoop(); task.wait()
 		end
 	end)
-	conn:Disconnect()
-	char:PivotTo(oldPos)
-	workspace.Gravity = savedGravity
-	if not ok then warn("collect loop error:", err) end
+	conn:Disconnect(); char:PivotTo(oldPos); workspace.Gravity = savedGrav
+	if not ok then warn("collect:", err) end
 end
 
+-- ============================================================
+-- STEAL (Fix: HoldDuration=0 + Loop statt einmaligem Fire)
+-- ============================================================
 local function steal(fruit, owner)
 	if not isValidFruit(fruit) then return false end
 	local ownerUserId = tonumber(fruit:GetAttribute("UserId"))
 	local plantId     = fruit:GetAttribute("PlantId")
 	local fruitId     = fruit:GetAttribute("FruitId") or ""
 	if not ownerUserId or not plantId then
-		stealBlacklist[fruit]      = true
-		stealBlacklistIds[fruitId] = true
-		return false
+		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true; return false
 	end
-	local char = getCharacter()
-	if not char then return false end
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if not hrp then return false end
+	local char, hrp = getCharacter()
+	if not char or not hrp then return false end
 	local hp, pp = getFruitHpPp(fruit)
 	if not hp or not pp then
-		stealBlacklist[fruit]      = true
-		stealBlacklistIds[fruitId] = true
-		return false
+		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true; return false
 	end
 
-	local savedGravity = workspace.Gravity
-	workspace.Gravity  = 0
-	local oldPos       = char:GetPivot()
-	local conn         = moveTo(hrp, CFrame.new(hp.Position - Vector3.new(0, 2, 0)))
-	local success      = false
+	local savedGrav = workspace.Gravity; workspace.Gravity = 0
+	local oldPos    = char:GetPivot()
+	local conn      = moveTo(hrp, CFrame.new(hp.Position - Vector3.new(0, 2, 0)))
+	local success   = false
 
 	local ok, err = pcall(function()
 		task.wait(pp.HoldDuration + 0.15)
-		
 		pp.HoldDuration = 0
 		noclipLoop()
-
 		local att = 0
 		repeat
 			att = att + 1
 			fireproximityprompt(pp)
-			Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId)
+			if owner then Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId) end
 			noclipLoop()
 			task.wait(0.15)
 		until att >= 3 or not pp.Parent
-
 		if att >= 3 then
-			stealBlacklist[fruit]      = true
-			stealBlacklistIds[fruitId] = true
+			stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true
 		end
-
 		success = true
 	end)
 
-	conn:Disconnect()
-	char:PivotTo(oldPos)
-	workspace.Gravity = savedGravity
-	valueCache[fruit] = nil
-	ppCache[fruit]    = nil
+	conn:Disconnect(); char:PivotTo(oldPos); workspace.Gravity = savedGrav
+	valueCache[fruit] = nil; ppCache[fruit] = nil
 
 	if not ok then
-		warn("steal pcall:", err)
-		stealBlacklist[fruit]      = true
-		stealBlacklistIds[fruitId] = true
+		warn("steal:", err)
+		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true
 		return false
 	end
 	return success
 end
 
 local function goToSpawnAndComplete()
-	local char = getCharacter()
-	if not char then return end
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if not hrp then return end
-	local savedGravity = workspace.Gravity
-	workspace.Gravity  = 0
+	local char, hrp = getCharacter()
+	if not char or not hrp then return end
+	local savedGrav = workspace.Gravity; workspace.Gravity = 0
 	local targetCF
-	if spawnPos:IsA("BasePart") then
-		targetCF = spawnPos.CFrame
-	elseif spawnPos:IsA("Model") then
-		targetCF = spawnPos:GetPivot()
-	else
-		workspace.Gravity = savedGravity
-		return
-	end
+	if spawnPos:IsA("BasePart") then targetCF = spawnPos.CFrame
+	elseif spawnPos:IsA("Model") then targetCF = spawnPos:GetPivot()
+	else workspace.Gravity = savedGrav; return end
 	local conn = moveTo(hrp, targetCF)
-	task.wait(0.02)
-	Networking.Steal.CompleteSteal:Fire()
-	task.wait(0.06)
-	conn:Disconnect()
-	workspace.Gravity = savedGravity
+	task.wait(0.02); Networking.Steal.CompleteSteal:Fire(); task.wait(0.06)
+	conn:Disconnect(); workspace.Gravity = savedGrav
 end
 
 -- ============================================================
--- QUEUE HELPERS
+-- QUEUE
 -- ============================================================
 local function sortQueue()
 	table.sort(queue, function(a, b) return a.t < b.t end)
 end
 local function removeTier(tier)
-	for i = #queue, 1, -1 do
-		if queue[i].t == tier then table.remove(queue, i) end
-	end
+	for i = #queue, 1, -1 do if queue[i].t == tier then table.remove(queue, i) end end
 end
 local function addQueue(p, tier)
 	for _, v in ipairs(queue) do if v.m == p then return end end
-	table.insert(queue, { m = p, t = tier })
-	sortQueue()
+	table.insert(queue, { m = p, t = tier }); sortQueue()
 end
 local function loopAdd(f, tier)
 	for _, item in pairs(f:GetChildren()) do addQueue(item, tier) end
 end
 
 -- ============================================================
--- LISTS FÜR DROPDOWNS
+-- LISTS
 -- ============================================================
 local function getPlayerList()
 	local pt = {}
@@ -475,77 +511,75 @@ local function getSeedList()
 end
 local function getGearList()
 	local st = {}
-	local ok, items = pcall(function()
-		return ReplicatedStorage.StockValues.GearShop.Items:GetChildren()
-	end)
-	if ok and items then
-		for _, d in pairs(items) do if d.Name then st[#st + 1] = d.Name end end
-	end
+	local ok, items = pcall(function() return ReplicatedStorage.StockValues.GearShop.Items:GetChildren() end)
+	if ok and items then for _, d in pairs(items) do if d.Name then st[#st + 1] = d.Name end end end
 	return st
 end
 
 -- ============================================================
--- STEAL HELPERS
+-- GARDEN / STEAL HELPERS
 -- ============================================================
 local function getTargetGarden(t)
-	local tp = game.Players:FindFirstChild(t)
-	if not tp then return end
-	local pid = tp:GetAttribute("PlotId")
-	if not pid then return end
+	local tp = game.Players:FindFirstChild(t); if not tp then return end
+	local pid = tp:GetAttribute("PlotId"); if not pid then return end
 	return Gardens:FindFirstChild("Plot" .. pid)
 end
+
 local function isInGarden(t)
-	local p = game.Players:FindFirstChild(t)
+	local p = typeof(t) == "Instance" and t or game.Players:FindFirstChild(t)
 	return p and p:GetAttribute("IsInOwnGarden") == true
 end
-local function canSteal(t)
-	return not isInGarden(t) and night.Value == true
-end
 
-local function getTargetFruit(t)
-	if stealBest then
-		if bestCache and bestCache.Parent and os.clock() - bestCacheT < BEST_TTL and isValidFruit(bestCache) then
-			return bestCache
-		end
-		local best, bestV, bestPlr = nil, -1, nil
-		for _, plr in pairs(game.Players:GetChildren()) do
-			if plr == player then continue end
-			if not canSteal(plr.Name) then continue end
-			local garden = getTargetGarden(plr.Name)
-			if not garden then continue end
-			for _, target in pairs(garden.Plants:GetChildren()) do
-				local fruits = target:FindFirstChild("Fruits")
-				if fruits then
-					for _, tf in pairs(fruits:GetChildren()) do
-						if not isValidFruit(tf) then continue end
-						local v = getFruitValue(tf)
-						if v > bestV then bestV = v; best = tf; bestPlr = plr end
-					end
-				else
-					if isValidFruit(target) and false then --false on purpose
-						local v = getFruitValue(target)
-						if v > bestV then bestV = v; best = target end
-					end
-				end
-			end
-		end
-		bestCache  = best
-		bestCacheT = os.clock()
-		return best, bestPlr
-	else
-		local garden = getTargetGarden(t)
-		if not garden then return end
+-- Besten Spieler (für stealBest) finden — UNABHÄNGIG von Gartenstatus.
+-- Gibt den Spieler mit dem wertvollsten reifen Obst zurück, damit wir wissen,
+-- wen wir flingen ODER bestehlen sollen.
+local function findBestTargetPlayer()
+	if bestCache and bestCache.plr and bestCache.plr.Parent
+	   and os.clock() - bestCacheT < BEST_TTL then
+		return bestCache.plr
+	end
+	local bPlr, bV = nil, -1
+	for _, plr in pairs(game.Players:GetChildren()) do
+		if plr == player then continue end
+		local garden = getTargetGarden(plr.Name); if not garden then continue end
 		for _, target in pairs(garden.Plants:GetChildren()) do
 			local fruits = target:FindFirstChild("Fruits")
-			if fruits then
-				for _, tf in pairs(fruits:GetChildren()) do
-					if isValidFruit(tf) then return tf end
-				end
-			else
-				if isValidFruit(target) and false then return target, game.Players:FindFirstChild(t) end -- false on purpose too
+			local list   = fruits and fruits:GetChildren() or {target}
+			for _, tf in ipairs(list) do
+				if stealBlacklist[tf] then continue end
+				local fId = tf:GetAttribute("FruitId")
+				if fId and stealBlacklistIds[fId] then continue end
+				local age = tf:GetAttribute("Age"); local maxAge = tf:GetAttribute("MaxAge")
+				if not age or not maxAge or age < maxAge then continue end
+				local v = getFruitValue(tf)
+				if v > bV then bV = v; bPlr = plr end
 			end
 		end
 	end
+	bestCache = { plr = bPlr }; bestCacheT = os.clock()
+	return bPlr
+end
+
+-- Stählbare Frucht von einem Spieler holen (PP muss aktiv/aktivierbar sein)
+local function getStealableFruit(plr)
+	if not plr then return nil end
+	local garden = getTargetGarden(plr.Name); if not garden then return nil end
+	local bestFruit, bestV = nil, -1
+	for _, target in pairs(garden.Plants:GetChildren()) do
+		local fruits = target:FindFirstChild("Fruits")
+		local list   = fruits and fruits:GetChildren() or {target}
+		for _, tf in ipairs(list) do
+			if isValidFruit(tf) then
+				if stealBest then
+					local v = getFruitValue(tf)
+					if v > bestV then bestV = v; bestFruit = tf end
+				else
+					return tf  -- Für stealTarget: erstes valides reicht
+				end
+			end
+		end
+	end
+	return bestFruit
 end
 
 local function maxInventory()
@@ -575,53 +609,90 @@ local function buyGear(name, amt)
 end
 
 for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
-	v:GetPropertyChangedSignal("Value"):Connect(function() buyGear(v.Name, v.Value) end)
+	v:GetPropertyChangedSignal("Value"):Connect(function()
+		buyGear(v.Name, v.Value)
+		task.delay(1, function() buyGear(v.Name, v.Value) end)
+	end)
 end
 for _, v in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
-	v:GetPropertyChangedSignal("Value"):Connect(function() buySeeds(v.Name, v.Value) end)
+	v:GetPropertyChangedSignal("Value"):Connect(function()
+		buySeeds(v.Name, v.Value)
+		task.delay(1, function() buySeeds(v.Name, v.Value) end)
+	end)
 end
 
 -- ============================================================
--- TASK: STEAL / QUEUE LOOP
+-- TASK: INTEGRIERTER STEAL + AUTO-FLING LOOP
+--
+-- Logik:
+--   stealBest / stealTarget aktiv
+--     → Target im Garten + Nacht + flingOnGarden
+--         → performFling → nach Fling ggf. direkt stehlen
+--     → Target außerhalb + Nacht
+--         → steal + goToSpawnAndComplete
+--     → Tag
+--         → warten
 -- ============================================================
 task.spawn(function()
 	while true do
-		local stealTargetActive = stealTargetToggled
-			and stealTarget ~= nil
-			and game.Players:FindFirstChild(stealTarget) ~= nil
-			and canSteal(stealTarget)
-		local isStealActive = stealTargetActive or (stealBest and night.Value == true)
+		local stealModeOn = (stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget))
+			or stealBest
 
-		if isStealActive then
-			if maxInventory() then
-				local ok, err = pcall(goToSpawnAndComplete)
-				if not ok then warn("goToSpawnAndComplete:", err) end
-				task.wait(1)
-			else
-				local item, plr = getTargetFruit(stealTarget)
-				if item and item.Parent then
-					local fruitId    = item:GetAttribute("FruitId")
-					local ok, result = pcall(steal, item, plr)
-					if ok and result == true then
-						local ok2, err2 = pcall(goToSpawnAndComplete)
-						if not ok2 then warn("goToSpawnAndComplete:", err2) end
-						bestCache = nil
-					elseif not ok then
-						warn("steal loop error:", result)
-						stealBlacklist[item] = true
-						if fruitId then stealBlacklistIds[fruitId] = true end
-						valueCache[item] = nil
+		if stealModeOn and not isFlingling then
+			local targetPlr
+			if stealBest then
+				targetPlr = findBestTargetPlayer()
+			elseif stealTargetToggled and stealTarget then
+				targetPlr = game.Players:FindFirstChild(stealTarget)
+			end
+
+			if targetPlr then
+				if isInGarden(targetPlr) then
+					-- Im Garten → kann nicht bestohlen werden
+					if flingOnGarden and night.Value and not isFlingling then
+						-- Aus dem Garten flingen! Dann sofort Steal-Check
+						bestCache = nil  -- Danach neu bewerten
+						task.spawn(function()
+							local ok, err = pcall(performFling, targetPlr)
+							if not ok then warn("auto-fling:", err); isFlingling = false end
+						end)
+						task.wait(3.2)  -- Fling-Zyklus abwarten (2.5s Loop + Buffer)
+					else
+						task.wait(1.0)
+					end
+
+				elseif night.Value then
+					-- Außerhalb des Gartens bei Nacht → stehlen
+					if maxInventory() then
+						pcall(goToSpawnAndComplete); task.wait(1)
+					else
+						local fruit = getStealableFruit(targetPlr)
+						if fruit and fruit.Parent then
+							local fruitId = fruit:GetAttribute("FruitId")
+							local ok, result = pcall(steal, fruit, targetPlr)
+							if ok and result then
+								pcall(goToSpawnAndComplete); bestCache = nil
+							elseif not ok then
+								warn("steal:", result)
+								stealBlacklist[fruit] = true
+								if fruitId then stealBlacklistIds[fruitId] = true end
+								valueCache[fruit] = nil
+							end
+						else
+							task.wait(0.5)
+						end
 					end
 				else
-					task.wait(0.5)
+					-- Tag → warten
+					task.wait(1.0)
 				end
+			else
+				task.wait(0.5)
 			end
-		elseif #queue > 0 then
+
+		elseif not isFlingling and #queue > 0 then
 			local item = table.remove(queue, 1)
-			if item and item.m and item.m.Parent then
-				local ok, err = pcall(collect, item.m)
-				if not ok then warn("collect (queue):", err) end
-			end
+			if item and item.m and item.m.Parent then pcall(collect, item.m) end
 		end
 		task.wait()
 	end
@@ -636,10 +707,7 @@ task.spawn(function()
 		local char = player.Character
 		if char then
 			local hum = char:FindFirstChild("Humanoid")
-			if hum then
-				hum.WalkSpeed  = walkSpeed
-				hum.JumpHeight = jumpHeight
-			end
+			if hum then hum.WalkSpeed = walkSpeed; hum.JumpHeight = jumpHeight end
 		end
 	end
 end)
@@ -651,27 +719,22 @@ task.spawn(function()
 	while true do
 		task.wait()
 		if not autoCollect or not plot or maxInventory() then continue end
-		local pPlants = plot:FindFirstChild("Plants")
-		if not pPlants then continue end
+		local pPlants = plot:FindFirstChild("Plants"); if not pPlants then continue end
 		for _, plant in pairs(pPlants:GetChildren()) do
 			if not autoCollect then break end
-			local fruits = plant:FindFirstChild("Fruits")
-			local targets = fruits and fruits:GetChildren() or { plant }
+			local fruits  = plant:FindFirstChild("Fruits")
+			local targets = fruits and fruits:GetChildren() or {plant}
 			for _, fruit in ipairs(targets) do
 				if not autoCollect then break end
-				local age    = fruit:GetAttribute("Age") or 0
+				local age = fruit:GetAttribute("Age") or 0
 				local maxAge = fruit:GetAttribute("MaxAge") or 1
-				local mut    = fruit:GetAttribute("Mutation")
-				local hasMut = mut and mut ~= ""
-				if age >= maxAge and (not collectMutation or hasMut) then
+				local mut  = fruit:GetAttribute("Mutation")
+				if age >= maxAge and (not collectMutation or (mut and mut ~= "")) then
 					local val = getFruitValue(fruit)
 					if val >= autoCollectMinValue and val <= autoCollectMaxValue then
 						local fId = fruit:GetAttribute("FruitId")
 						local pId = fruit:GetAttribute("PlantId")
-						if pId then
-							Networking.Garden.CollectFruit:Fire(pId, fId or "")
-							task.wait(0.03)
-						end
+						if pId then Networking.Garden.CollectFruit:Fire(pId, fId or ""); task.wait(0.03) end
 					end
 				end
 			end
@@ -680,37 +743,16 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- TASK: FLING LOOP
--- Läuft vollständig unabhängig — kein CFrame des lokalen Chars →
--- kein Konflikt mit moveTo. Setzt AssemblyLinearVelocity direkt
--- auf alle BaseParts des Ziel-Characters (client-seitig).
+-- TASK: MANUELLER FLING (separater Toggle, unabhängig vom Steal)
 -- ============================================================
 task.spawn(function()
 	while true do
-		task.wait(0.1)
-		if not flingEnabled or not flingTarget then continue end
-
-		local targetPlayer = game.Players:FindFirstChild(flingTarget)
-		if not targetPlayer then continue end
-		local targetChar = targetPlayer.Character
-		if not targetChar then continue end
-		local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
-		if not targetHrp then continue end
-
-		local flingVec = Vector3.new(
-			math.random(-200, 200),
-			1e5,
-			math.random(-200, 200)
-		)
-		pcall(function()
-			for _, part in ipairs(targetChar:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.AssemblyLinearVelocity = flingVec
-				end
-			end
-		end)
-
-		task.wait(1.0)
+		task.wait(0.2)
+		if not flingEnabled or not flingTarget or isFlingling then continue end
+		local tp = game.Players:FindFirstChild(flingTarget); if not tp then continue end
+		local ok, err = pcall(performFling, tp)
+		if not ok then warn("manual fling:", err); isFlingling = false end
+		task.wait(3.5)
 	end
 end)
 
@@ -719,37 +761,25 @@ end)
 -- ============================================================
 local function formatNumber(n)
 	if not n then return "0" end
-	if n >= 1e6 then
-		return string.format("%.2fM", n / 1e6):gsub("%.00M", "M")
-	elseif n >= 1000 then
-		return string.format("%.2fk", n / 1000):gsub("%.00k", "k")
-	else
-		return tostring(math.floor(n))
-	end
+	if n >= 1e6 then return string.format("%.2fM", n/1e6):gsub("%.00M", "M")
+	elseif n >= 1000 then return string.format("%.2fk", n/1000):gsub("%.00k", "k")
+	else return tostring(math.floor(n)) end
 end
 
 local function createEsp(fruit)
-	local val = getFruitValue(fruit)
-	if val < espMinValue then return end
+	local val = getFruitValue(fruit); if val < espMinValue then return end
 	if not activeESPs[fruit] then
 		local bg = Instance.new("BillboardGui")
-		bg.Adornee     = fruit:FindFirstChild("HarvestPart") or fruit
-		bg.Size        = UDim2.new(0, 100, 0, 50)
-		bg.StudsOffset = Vector3.new(0, 2, 0)
+		bg.Adornee = fruit:FindFirstChild("HarvestPart") or fruit
+		bg.Size = UDim2.new(0, 100, 0, 50); bg.StudsOffset = Vector3.new(0, 2, 0)
 		bg.AlwaysOnTop = true
 		local tl = Instance.new("TextLabel")
-		tl.Name               = "ValueLabel"
-		tl.Parent             = bg
-		tl.Size               = UDim2.new(1, 0, 1, 0)
-		tl.BackgroundTransparency = 1
-		tl.TextColor3         = Color3.new(0.3, 1, 0.3)
-		tl.TextStrokeTransparency = 0
-		tl.Text               = "Val: " .. formatNumber(val)
-		tl.Font               = Enum.Font.GothamBold
-		tl.TextSize           = 14
-		bg.Parent             = espFolder
-		activeESPs[fruit]      = bg
-		activeESPValues[fruit] = val
+		tl.Name = "ValueLabel"; tl.Parent = bg; tl.Size = UDim2.new(1, 0, 1, 0)
+		tl.BackgroundTransparency = 1; tl.TextColor3 = Color3.new(0.3, 1, 0.3)
+		tl.TextStrokeTransparency = 0; tl.Text = "Val: " .. formatNumber(val)
+		tl.Font = Enum.Font.GothamBold; tl.TextSize = 14
+		bg.Parent = espFolder
+		activeESPs[fruit] = bg; activeESPValues[fruit] = val
 	else
 		if activeESPValues[fruit] ~= val then
 			activeESPValues[fruit] = val
@@ -769,20 +799,15 @@ task.spawn(function()
 		end
 		for _, fruit in ipairs(toRemove) do
 			if activeESPs[fruit] then activeESPs[fruit]:Destroy() end
-			activeESPs[fruit]      = nil
-			activeESPValues[fruit] = nil
+			activeESPs[fruit] = nil; activeESPValues[fruit] = nil
 		end
 		if not espEnabled then continue end
 		for _, garden in pairs(Gardens:GetChildren()) do
-			local plants = garden:FindFirstChild("Plants")
-			if not plants then continue end
+			local plants = garden:FindFirstChild("Plants"); if not plants then continue end
 			for _, plant in pairs(plants:GetChildren()) do
 				local fruits = plant:FindFirstChild("Fruits")
-				if fruits then
-					for _, fruit in pairs(fruits:GetChildren()) do createEsp(fruit) end
-				else
-					createEsp(plant)
-				end
+				if fruits then for _, f in pairs(fruits:GetChildren()) do createEsp(f) end
+				else createEsp(plant) end
 			end
 		end
 	end
@@ -804,36 +829,37 @@ local VisualTab = Window:CreateTab("Visual", 4483362458)
 PlayerTab:CreateToggle({ Name="Noclip", CurrentValue=noclip, Flag="noclip",
 	Callback=function(v) noclip=v end })
 PlayerTab:CreateSlider({ Name="Walk Speed", Range={0,100}, Increment=1,
-	CurrentValue=walkSpeed, Flag="walkspeedslider",
-	Callback=function(v) walkSpeed=v end })
+	CurrentValue=walkSpeed, Flag="walkspeedslider", Callback=function(v) walkSpeed=v end })
 PlayerTab:CreateSlider({ Name="Jump Height", Range={0,50}, Increment=0.5,
-	CurrentValue=jumpHeight, Flag="jumpheightslider",
-	Callback=function(v) jumpHeight=v end })
+	CurrentValue=jumpHeight, Flag="jumpheightslider", Callback=function(v) jumpHeight=v end })
 
 -- ---- Steal ----
-StealTab:CreateSection("Best Fruit")
+StealTab:CreateSection("Steal Best")
 StealTab:CreateToggle({ Name="Steal Best", CurrentValue=stealBest, Flag="stealbesttoggled",
 	Callback=function(v)
-		stealBest  = v
-		valueCache = setmetatable({}, {__mode="k"})
-		bestCache  = nil
-	end })
-StealTab:CreateToggle({ Name="Auto Fling Target", CurrentValue=stealBest, Flag="autoflingtarget",
-	Callback=function(v)
-		autoFlingTarget  = v
+		stealBest = v; valueCache = setmetatable({}, {__mode="k"}); bestCache = nil
 	end })
 
-StealTab:CreateSection("Target")
+StealTab:CreateSection("Steal Target")
 local StealTargetSelect = StealTab:CreateDropdown({
-	Name="Select Target", Options={}, CurrentOption={}, MultipleOptions=false, Flag=nil,
+	Name="Target auswählen", Options={}, CurrentOption={},
+	MultipleOptions=false, Flag=nil,
 	Callback=function(opts) stealTarget=opts[1]; resetStealState() end })
 StealTab:CreateToggle({ Name="Steal Target", CurrentValue=stealTargetToggled, Flag="stealtargettoggled",
 	Callback=function(v) stealTargetToggled=v; if v then resetStealState() end end })
 
--- ---- Fling ----
-StealTab:CreateSection("Fling")
+-- Auto-Fling gilt für BEIDE Modi (Steal Best + Target)
+StealTab:CreateSection("Auto-Fling (Garten-Schutz umgehen)")
+StealTab:CreateToggle({ Name="Fling wenn im Garten", CurrentValue=flingOnGarden, Flag="flingongarden",
+	Callback=function(v) flingOnGarden=v end })
+StealTab:CreateSlider({ Name="Fling Stärke", Range={1,10}, Increment=1,
+	CurrentValue=flingStrength, Flag="flingstrength",
+	Callback=function(v) flingStrength=v end })
+
+StealTab:CreateSection("Manuell flingen")
 local FlingTargetSelect = StealTab:CreateDropdown({
-	Name="Fling Target", Options={}, CurrentOption={}, MultipleOptions=false, Flag=nil,
+	Name="Fling Target", Options={}, CurrentOption={},
+	MultipleOptions=false, Flag=nil,
 	Callback=function(opts) flingTarget=opts[1] end })
 StealTab:CreateToggle({ Name="Fling Player", CurrentValue=flingEnabled, Flag="flingplayer",
 	Callback=function(v) flingEnabled=v end })
@@ -862,22 +888,16 @@ AutoTab:CreateDropdown({ Name="Select Seeds", Options=getSeedList(), CurrentOpti
 AutoTab:CreateToggle({ Name="Auto Buy Seeds", CurrentValue=autoBuy, Flag="autobuyseeds",
 	Callback=function(v)
 		autoBuy = v
-		if v then
-			for _, i in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
-				buySeeds(i.Name, i.Value)
-			end
-		end
+		if v then for _, i in pairs(ReplicatedStorage.StockValues.SeedShop.Items:GetChildren()) do
+			buySeeds(i.Name, i.Value) end end
 	end })
 AutoTab:CreateDropdown({ Name="Select Gear", Options=getGearList(), CurrentOption={},
 	MultipleOptions=true, Flag="autobuygearselected", Callback=function(o) autoBuySelectedGear=o end })
 AutoTab:CreateToggle({ Name="Auto Buy Gear", CurrentValue=autoBuyGear, Flag="autobuygear",
 	Callback=function(v)
 		autoBuyGear = v
-		if v then
-			for _, i in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
-				buyGear(i.Name, i.Value)
-			end
-		end
+		if v then for _, i in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
+			buyGear(i.Name, i.Value) end end
 	end })
 
 AutoTab:CreateSection("Own")
@@ -897,9 +917,7 @@ VisualTab:CreateSection("ESP")
 VisualTab:CreateToggle({ Name="Enable Fruit ESP", CurrentValue=espEnabled, Flag="fruitesp",
 	Callback=function(v) espEnabled=v end })
 VisualTab:CreateSlider({ Name="ESP Min Value", Range={0,50000}, Increment=10,
-	CurrentValue=espMinValue, Flag="espminvalue",
-	Callback=function(v) espMinValue=v end })
-
+	CurrentValue=espMinValue, Flag="espminvalue", Callback=function(v) espMinValue=v end })
 VisualTab:CreateSection("Predictions (TBA)")
 VisualTab:CreateToggle({ Name="Predict Events", CurrentValue=false, Flag="predictevents",
 	Callback=function() end })
@@ -915,7 +933,7 @@ PetTab:CreateDropdown({ Name="Select Pets", Options={}, CurrentOption={},
 	Callback=function(o) autoBuySelectedPet=o end })
 
 -- ============================================================
--- PLAYER LIST — beide Dropdowns synchron aktualisieren
+-- PLAYER LIST REFRESH
 -- ============================================================
 local function refreshPlayerLists()
 	local list = getPlayerList()
@@ -928,3 +946,5 @@ game.Players.PlayerAdded:Connect(refreshPlayerLists)
 game.Players.PlayerRemoving:Connect(refreshPlayerLists)
 
 Rayfield:LoadConfiguration()
+ENDOFSCRIPT
+echo "Zeilen: $(wc -l < /mnt/user-data/outputs/astro_hub.lua)"
