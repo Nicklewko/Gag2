@@ -372,7 +372,7 @@ local Window = Rayfield:CreateWindow({
 		ElementStroke = Color3.fromRGB(45, 45, 45),
 		SecondaryElementStroke = Color3.fromRGB(35, 35, 35),
 		SliderBackground = Color3.fromRGB(255, 255, 255),
-		SliderProgress = Color3.fromRGB(140, 140, 140),
+		SliderProgress = Color3.fromRGB(130, 130, 130),
 		SliderStroke = Color3.fromRGB(180, 180, 180),
 		ToggleBackground = Color3.fromRGB(20, 20, 20),
 		ToggleEnabled = Color3.fromRGB(255, 255, 255),
@@ -793,7 +793,7 @@ local function addPetToQueue(p)
 	if not n or not table.find(autoBuySelectedPet, n) then return end
 	local a = findEntry(queue, p, 3)
 	if a then return end
-	addQueue(p, 3, 3)
+	addQueue(p, 3, 8)
 end
 
 WildPetSpawns.ChildAdded:Connect(function(p)
