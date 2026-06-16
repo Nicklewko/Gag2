@@ -842,21 +842,21 @@ StealTab:CreateToggle({ Name="Steal Best", CurrentValue=stealBest, Flag="stealbe
 
 StealTab:CreateSection("Steal Target")
 local StealTargetSelect = StealTab:CreateDropdown({
-	Name="Target auswählen", Options={}, CurrentOption={},
+	Name="Pick Target", Options={}, CurrentOption={},
 	MultipleOptions=false, Flag=nil,
 	Callback=function(opts) stealTarget=opts[1]; resetStealState() end })
 StealTab:CreateToggle({ Name="Steal Target", CurrentValue=stealTargetToggled, Flag="stealtargettoggled",
 	Callback=function(v) stealTargetToggled=v; if v then resetStealState() end end })
 
 -- Auto-Fling gilt für BEIDE Modi (Steal Best + Target)
-StealTab:CreateSection("Auto-Fling (Garten-Schutz umgehen)")
-StealTab:CreateToggle({ Name="Fling wenn im Garten", CurrentValue=flingOnGarden, Flag="flingongarden",
+StealTab:CreateSection("Auto-Fling")
+StealTab:CreateToggle({ Name="Fling if in garden", CurrentValue=flingOnGarden, Flag="flingongarden",
 	Callback=function(v) flingOnGarden=v end })
-StealTab:CreateSlider({ Name="Fling Stärke", Range={1,10}, Increment=1,
+StealTab:CreateSlider({ Name="Fling Strength", Range={1,10}, Increment=1,
 	CurrentValue=flingStrength, Flag="flingstrength",
 	Callback=function(v) flingStrength=v end })
 
-StealTab:CreateSection("Manuell flingen")
+StealTab:CreateSection("Manual Fling")
 local FlingTargetSelect = StealTab:CreateDropdown({
 	Name="Fling Target", Options={}, CurrentOption={},
 	MultipleOptions=false, Flag=nil,
