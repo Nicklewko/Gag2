@@ -554,7 +554,8 @@ local function findBestTargetPlayer()
 		local garden = getTargetGarden(plr.Name); if not garden then continue end
 		for _, target in pairs(garden.Plants:GetChildren()) do
 			local fruits = target:FindFirstChild("Fruits")
-			local list   = fruits and fruits:GetChildren() or --{target}
+			local list   = fruits and fruits:GetChildren() --{target}
+            if not list then continue end
 			for _, tf in ipairs(list) do
 				if stealBlacklist[tf] then continue end
 				local fId = tf:GetAttribute("FruitId")
@@ -577,6 +578,7 @@ local function getStealableFruit(plr)
 	for _, target in pairs(garden.Plants:GetChildren()) do
 		local fruits = target:FindFirstChild("Fruits")
 		local list   = fruits and fruits:GetChildren() --or {target}
+        if not list then continue end
 		for _, tf in ipairs(list) do
 			if isValidFruit(tf) then
 				if stealBest then
