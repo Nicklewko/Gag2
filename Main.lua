@@ -631,9 +631,9 @@ local function stealNearbyFruits(centerPos, ownerPlr)
 		local tf = entry.fruit
 		if not tf or not tf.Parent then continue end
 		local tfId = tf:GetAttribute("FruitId")
+		if not stealBest or not stealTarget or not stealTargetToggled then return end
 		local ok2, res2 = pcall(steal, tf, ownerPlr)
 		if not ok2 then
-			warn("stealNearby:", res2)
 			stealBlacklist[tf] = true
 			if tfId then stealBlacklistIds[tfId] = true end
 			valueCache[tf] = nil
