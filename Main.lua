@@ -372,7 +372,7 @@ local Window = Rayfield:CreateWindow({
 		ElementStroke = Color3.fromRGB(45, 45, 45),
 		SecondaryElementStroke = Color3.fromRGB(35, 35, 35),
 		SliderBackground = Color3.fromRGB(255, 255, 255),
-		SliderProgress = Color3.fromRGB(170, 170, 170),
+		SliderProgress = Color3.fromRGB(140, 140, 140),
 		SliderStroke = Color3.fromRGB(180, 180, 180),
 		ToggleBackground = Color3.fromRGB(20, 20, 20),
 		ToggleEnabled = Color3.fromRGB(255, 255, 255),
@@ -801,7 +801,7 @@ task.spawn(function()
 		local stealModeOn = (stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget))
 			or stealBest
 
-		if stealModeOn and not isFlingling and night.Value then
+		if stealModeOn and not isFlingling then
 			local targetPlr
 			if stealBest then
 				targetPlr = findBestTargetPlayer()
@@ -848,7 +848,7 @@ task.spawn(function()
 			else
 				task.wait(0.5)
 			end
-		elseif not isFlingling and #queue > 0 then
+		elseif not isFlinging and #queue > 0 then
 			printTable(queue)
 			local item = table.remove(queue, 1)
 			printTable(item)
