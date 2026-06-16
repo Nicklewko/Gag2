@@ -946,7 +946,7 @@ local StealTargetSelect = StealTab:CreateDropdown({
 StealTab:CreateToggle({ Name="Steal Target", CurrentValue=stealTargetToggled, Flag="stealtargettoggled",
 	Callback=function(v) stealTargetToggled=v; if v then resetStealState() end end })
 
-StealTab:CreateSection("Auto-Fling (gilt für Steal Best + Target)")
+StealTab:CreateSection("Auto-Fling")
 StealTab:CreateToggle({ Name="Fling if in garden", CurrentValue=flingOnGarden, Flag="flingongarden",
 	Callback=function(v) flingOnGarden=v end })
 StealTab:CreateSlider({ Name="Fling Strength", Range={1,10}, Increment=1,
