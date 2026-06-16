@@ -576,7 +576,7 @@ local function getStealableFruit(plr)
 	local bestFruit, bestV = nil, -1
 	for _, target in pairs(garden.Plants:GetChildren()) do
 		local fruits = target:FindFirstChild("Fruits")
-		local list   = fruits and fruits:GetChildren() or {target}
+		local list   = fruits and fruits:GetChildren() --or {target}
 		for _, tf in ipairs(list) do
 			if isValidFruit(tf) then
 				if stealBest then
