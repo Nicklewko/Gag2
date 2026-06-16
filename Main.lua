@@ -780,7 +780,7 @@ task.spawn(function()
 		local stealModeOn = (stealTargetToggled and stealTarget and game.Players:FindFirstChild(stealTarget))
 			or stealBest
 
-		if stealModeOn and not isFlingling then
+		if stealModeOn and not isFlingling and night.Value then
 			local targetPlr
 			if stealBest then
 				targetPlr = findBestTargetPlayer()
