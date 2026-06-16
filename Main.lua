@@ -530,6 +530,7 @@ local function collect(p, maxAtt)
 		end
 	end
 	if not prompt then return end
+	maxAtt = maxAtt or 700
 	prompt.HoldDuration = 0
 	local savedGrav = workspace.Gravity; workspace.Gravity = 0
 	local oldPos = char:GetPivot()
@@ -537,8 +538,7 @@ local function collect(p, maxAtt)
 	local conn   = moveTo(hrp, CFrame.new(pos - Vector3.new(0, 4, 0)))
 	local att    = 0
 	local ok, err = pcall(function()
-		while prompt.Parent do
-			if maxAtt and att >= maxAtt then break end
+		while prompt.Parent and not ((maxAtt and att >= maxAtt) or false) do
 			att = att + 1; fireproximityprompt(prompt); noclipLoop(); task.wait(0.1)
 		end
 	end)
@@ -850,7 +850,7 @@ task.spawn(function()
 			end
 		elseif not isFlinging and #queue > 0 then
 			local item = table.remove(queue, 1)
-			if item and item.m and item.m.Parent then pcall(collect, item.m, item.mA) end
+			if item and item.m and item.m.Parent then pcall(collect, item.m, item.a) end
 		end
 		task.wait()
 	end
