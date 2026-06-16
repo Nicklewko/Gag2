@@ -777,7 +777,7 @@ end
 local function addPetToQueue(p)
 	if not autoBuyPets then return end
 	local n = p:GetAttribute("PetName")
-	if not n or not autoBuySelectedPet[n] then return end
+	if not n or not table.find(queue, n) then return end
 	local a = findEntry(queue, p, 3)
 	if a then return end
 	addQueue(p, 3, 3)
