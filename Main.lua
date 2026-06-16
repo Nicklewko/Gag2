@@ -1,136 +1,27 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))() 
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 
 local Networking    = require(ReplicatedStorage.SharedModules.Networking)
 local SeedData      = require(ReplicatedStorage.SharedModules.SeedData)
---local PetData 		= require(ReplicatedStorage.SharedData.PetData)
 local SellValueData = require(ReplicatedStorage.SharedModules.SellValueData)
 
 local WildPetSpawns = workspace.Map.WildPetSpawns
 
 local PetData = {
-    Raccoon = {
-        DisplayName = "Raccoon",
-        Rarity = "Super",
-        SpawnChance = 0.24,
-        BasePrice = 5000000,
-        Offset = Vector3.new(0, 2.5, 0),
-        Description = "Sneaks out at <b>night</b> to <font color=\"#ff0000\">steal</font> fruit from empty gardens and <font color=\"#55ff55\">raises your steal limit by +25</font>",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Monkey = {
-        DisplayName = "Monkey",
-        Rarity = "Mythic",
-        SpawnChance = 0.2,
-        BasePrice = 1000000,
-        Offset = Vector3.new(0, 2.5, 0),
-        Description = "Swings around your <b>garden</b> and occasionally <font color=\"#55ff55\">picks ripe fruit</font> and brings it straight to you",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Robin = {
-        DisplayName = "Robin",
-        Rarity = "Legendary",
-        SpawnChance = 2.86,
-        BasePrice = 75000,
-        Offset = Vector3.new(0, 5, 0),
-        Description = "Flies around your <b>garden</b> eating ripe fruit and sometimes <font color=\"#55ff55\">drops seeds</font>",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Frog = {
-        DisplayName = "Frog",
-        Rarity = "Common",
-        SpawnChance = 11.9,
-        BasePrice = 10000,
-        Offset = Vector3.new(0, 2, 0),
-        Description = "Hops around your <b>garden</b> and <font color=\"#55ff55\">boosts your jump height by +5</font>",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Bunny = {
-        DisplayName = "Bunny",
-        Rarity = "Common",
-        SpawnChance = 11.9,
-        BasePrice = 20000,
-        Offset = Vector3.new(0, 2, 0),
-        Description = "Hops around your <b>garden</b> and <font color=\"#55ff55\">boosts your walk speed by +5</font>",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Deer = {
-        DisplayName = "Deer",
-        Rarity = "Rare",
-        SpawnChance = 4.29,
-        BasePrice = 50000,
-        Offset = Vector3.new(0, 3, 0),
-        Description = "Trots around your <b>garden</b> and helps plants <font color=\"#55ff55\">grow 10% faster</font>",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Owl = {
-        DisplayName = "Owl",
-        Rarity = "Uncommon",
-        SpawnChance = 7.14,
-        BasePrice = 25000,
-        Offset = Vector3.new(0, 5, 0),
-        Description = "<font color=\"#55ff55\">Extends your view distance by 12.5%</font> at night and <font color=\"#ffaa00\">hoots loudly</font> when a rare pet spawns",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Bee = {
-        DisplayName = "Bee",
-        Rarity = "Legendary",
-        SpawnChance = 2.38,
-        BasePrice = 1000000,
-        Offset = Vector3.new(0, 5, 0),
-        Description = "Patrols your <b>garden</b> and <font color=\"#ff8800\">swarms intruders</font> to defend your fruit",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    Unicorn = {
-        DisplayName = "Unicorn",
-        Rarity = "Mythic",
-        SpawnChance = 0.71,
-        BasePrice = 4000000,
-        Offset = Vector3.new(0, 3, 0),
-        Description = "Trots around your <b>garden</b> and <b>multiplies</b> the chance for plants and fruit to turn <font color=\"#ff66ff\">Rainbow</font> by <b>x1</b>",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    BlackDragon = {
-        DisplayName = "Black Dragon",
-        Rarity = "Super",
-        SpawnChance = 0,
-        BasePrice = 1000000,
-        Offset = Vector3.new(0, 5, 0),
-        Description = "Flies around your <b>garden</b> and <font color=\"#ff4400\">breathes fire</font> on intruders, setting them ablaze",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    IceSerpent = {
-        DisplayName = "Ice Serpent",
-        Rarity = "Super",
-        SpawnChance = 0,
-        BasePrice = 20000000,
-        Offset = Vector3.new(0, 5, 0),
-        Description = "Flies around your <b>garden</b> and <font color=\"#66ccff\">breathes frost</font> on intruders, freezing them solid",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    },
-    GoldenDragonfly = {
-        DisplayName = "Golden Dragonfly",
-        Rarity = "Mythic",
-        SpawnChance = 0.6,
-        BasePrice = 3000000,
-        Offset = Vector3.new(0, 5, 0),
-        Description = "Flies around your <b>garden</b> and <b>multiplies</b> the chance for plants and fruit to turn <font color=\"#ffd700\">Gold</font> by <b>x1</b>",
-        NeededWeather = {},
-        NeededTimeCycle = {}
-    }
+	Raccoon       = { DisplayName = "Raccoon",        Rarity = "Super",      SpawnChance = 0.24, BasePrice = 5000000  },
+	Monkey        = { DisplayName = "Monkey",         Rarity = "Mythic",     SpawnChance = 0.2,  BasePrice = 1000000  },
+	Robin         = { DisplayName = "Robin",          Rarity = "Legendary",  SpawnChance = 2.86, BasePrice = 75000    },
+	Frog          = { DisplayName = "Frog",           Rarity = "Common",     SpawnChance = 11.9, BasePrice = 10000    },
+	Bunny         = { DisplayName = "Bunny",          Rarity = "Common",     SpawnChance = 11.9, BasePrice = 20000    },
+	Deer          = { DisplayName = "Deer",           Rarity = "Rare",       SpawnChance = 4.29, BasePrice = 50000    },
+	Owl           = { DisplayName = "Owl",            Rarity = "Uncommon",   SpawnChance = 7.14, BasePrice = 25000    },
+	Bee           = { DisplayName = "Bee",            Rarity = "Legendary",  SpawnChance = 2.38, BasePrice = 1000000  },
+	Unicorn       = { DisplayName = "Unicorn",        Rarity = "Mythic",     SpawnChance = 0.71, BasePrice = 4000000  },
+	BlackDragon   = { DisplayName = "Black Dragon",   Rarity = "Super",      SpawnChance = 0,    BasePrice = 1000000  },
+	IceSerpent    = { DisplayName = "Ice Serpent",    Rarity = "Super",      SpawnChance = 0,    BasePrice = 20000000 },
+	GoldenDragonfly={ DisplayName = "Golden Dragonfly",Rarity = "Mythic",    SpawnChance = 0.6,  BasePrice = 3000000  },
 }
 
 -- MutationData
@@ -151,27 +42,6 @@ do
 			return mults[m] or 1
 		end
 	}
-end
-
-local function printTable(tbl, indent)
-	indent = indent or 0
-
-	if typeof(tbl) ~= "table" then
-		print(tbl)
-		return
-	end
-
-	for key, value in pairs(tbl) do
-		local spacing = string.rep("    ", indent)
-
-		if typeof(value) == "table" then
-			print(spacing .. tostring(key) .. " = {")
-			PrintTable(value, indent + 1)
-			print(spacing .. "}")
-		else
-			print(spacing .. tostring(key) .. " = " .. tostring(value))
-		end
-	end
 end
 
 -- FruitValueCalc
@@ -252,7 +122,6 @@ local autoBuyGear           = false
 local autoBuySelectedGear   = {}
 local autoBuyPets           = false
 local autoBuySelectedPet    = {}
-local petQueue				= {}
 local autoCollect           = false
 local collectMutation       = false
 local autoCollectMinValue   = 0
@@ -271,9 +140,12 @@ local stealBest             = false
 -- Fling
 local flingEnabled          = false
 local flingTarget           = nil
-local flingStrength         = 1
-local flingOnGarden         = false
-local isFlingling           = false
+local flingStrength         = 1      -- 1–10 (1 = originale SkidFling-Stärke)
+local flingOnGarden         = false  -- auto-fling wenn Target im Garten
+local isFlingling           = false  -- Mutex
+
+-- Nearby-Steal Radius (Studs): wie weit Früchte von der Hauptfrucht entfernt sein dürfen
+local STEAL_NEARBY_RADIUS = 40
 
 -- ============================================================
 -- ESP FOLDER
@@ -440,6 +312,9 @@ local function isValidFruit(fruit)
 	return age ~= nil and maxAge ~= nil and age >= maxAge
 end
 
+-- ============================================================
+-- FLING (angepasster SkidFling — nahtlos, einstellbare Stärke)
+-- ============================================================
 local function performFling(targetPlayer)
 	if isFlingling then return end
 	isFlingling = true
@@ -463,9 +338,7 @@ local function performFling(targetPlayer)
 	workspace.FallenPartsDestroyHeight = 0/0
 
 	local bv = Instance.new("BodyVelocity")
-	bv.Velocity = Vector3.zero
-	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-	bv.Parent   = hrp
+	bv.Velocity = Vector3.zero; bv.MaxForce = Vector3.new(9e9, 9e9, 9e9); bv.Parent = hrp
 
 	hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
 
@@ -473,24 +346,16 @@ local function performFling(targetPlayer)
 	local ROT  = 9e8 * flingStrength
 
 	local ok, err = pcall(function()
-		local t0    = tick()
-		local angle = 0
+		local t0 = tick(); local angle = 0
 		repeat
 			if not tHrp or not tHrp.Parent or not hrp.Parent then break end
-
 			angle = angle + 120
-
-			local cfA = CFrame.new(tHrp.Position) * CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0)
-			hrp.CFrame      = cfA
-			hrp.Velocity    = Vector3.new(BASE, BASE * 10, BASE)
-			hrp.RotVelocity = Vector3.new(ROT, ROT, ROT)
+			local cfA = CFrame.new(tHrp.Position) * CFrame.new(0,  1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0)
+			hrp.CFrame = cfA; hrp.Velocity = Vector3.new(BASE, BASE * 10, BASE); hrp.RotVelocity = Vector3.new(ROT, ROT, ROT)
 			task.wait()
-
 			if not tHrp.Parent or not hrp.Parent then break end
 			local cfB = CFrame.new(tHrp.Position) * CFrame.new(0, -1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0)
-			hrp.CFrame      = cfB
-			hrp.Velocity    = Vector3.new(BASE, BASE * 10, BASE)
-			hrp.RotVelocity = Vector3.new(ROT, ROT, ROT)
+			hrp.CFrame = cfB; hrp.Velocity = Vector3.new(BASE, BASE * 10, BASE); hrp.RotVelocity = Vector3.new(ROT, ROT, ROT)
 			task.wait()
 		until tick() - t0 > 2.5 or not isFlingling
 	end)
@@ -498,18 +363,14 @@ local function performFling(targetPlayer)
 
 	pcall(function() bv:Destroy() end)
 	pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true) end)
-	workspace.Gravity = savedGrav
-	workspace.FallenPartsDestroyHeight = oldFPDH
+	workspace.Gravity = savedGrav; workspace.FallenPartsDestroyHeight = oldFPDH
 
 	pcall(function()
 		if not hrp or not hrp.Parent then return end
-		hrp.CFrame      = oldPos * CFrame.new(0, 0.5, 0)
-		hrp.Velocity    = Vector3.zero
-		hrp.RotVelocity = Vector3.zero
+		hrp.CFrame = oldPos * CFrame.new(0, 0.5, 0)
+		hrp.Velocity = Vector3.zero; hrp.RotVelocity = Vector3.zero
 		for _, p in pairs(char:GetDescendants()) do
-			if p:IsA("BasePart") then
-				p.Velocity = Vector3.zero; p.RotVelocity = Vector3.zero
-			end
+			if p:IsA("BasePart") then p.Velocity = Vector3.zero; p.RotVelocity = Vector3.zero end
 		end
 	end)
 
@@ -517,7 +378,7 @@ local function performFling(targetPlayer)
 end
 
 -- ============================================================
--- COLLECT
+-- COLLECT (Queue: Früchte, Seeds, Pets)
 -- ============================================================
 local function collect(p, maxAtt)
 	local char, hrp = getCharacter()
@@ -538,7 +399,8 @@ local function collect(p, maxAtt)
 	local conn   = moveTo(hrp, CFrame.new(pos - Vector3.new(0, 4, 0)))
 	local att    = 0
 	local ok, err = pcall(function()
-		while prompt.Parent and not ((maxAtt and att >= maxAtt) or false) do
+		-- FIX: Vereinfachte Schleifenbedingung (vorher redundantes 'or false')
+		while prompt.Parent and att < maxAtt do
 			att = att + 1; fireproximityprompt(prompt); noclipLoop(); task.wait(0.1)
 		end
 	end)
@@ -547,7 +409,7 @@ local function collect(p, maxAtt)
 end
 
 -- ============================================================
--- STEAL (Fix: HoldDuration=0 + Loop statt einmaligem Fire)
+-- STEAL (Fix: kein redundanter initialer Fire mehr)
 -- ============================================================
 local function steal(fruit, owner)
 	if not isValidFruit(fruit) then return false end
@@ -570,18 +432,21 @@ local function steal(fruit, owner)
 	local success   = false
 
 	local ok, err = pcall(function()
-		fireproximityprompt(pp, pp.HoldDuration + 0.1)
-		task.wait(pp.HoldDuration + 0.15)
+		-- FIX: Redundanter initialer fireproximityprompt(pp, HoldDuration) entfernt.
+		-- Direkt HoldDuration=0 setzen und kurz warten bis Teleport greift.
+		pp.HoldDuration = 0
+		task.wait(0.05)
 		noclipLoop()
+
 		local att = 0
 		repeat
 			att = att + 1
-			pp.HoldDuration = 0
 			fireproximityprompt(pp)
 			if owner then Networking.Steal.BeginSteal:Fire(owner.UserId, plantId, fruitId) end
 			noclipLoop()
 			task.wait(0.15)
 		until att >= 3 or not pp.Parent
+
 		if att >= 3 then
 			stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true
 		end
@@ -592,11 +457,62 @@ local function steal(fruit, owner)
 	valueCache[fruit] = nil; ppCache[fruit] = nil
 
 	if not ok then
-		warn("steal:", err)
-		stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true
+		warn("steal:", err); stealBlacklist[fruit] = true; stealBlacklistIds[fruitId] = true
 		return false
 	end
 	return success
+end
+
+-- ============================================================
+-- STEAL NEARBY: Nach dem Haupt-Steal alle Früchte im Radius stehlen.
+-- Sortiert nach Distanz zur Hauptfrucht → nächste zuerst.
+-- Bricht ab wenn Inventar voll oder keine validen Früchte mehr.
+-- ============================================================
+local function stealNearbyFruits(centerPos, ownerPlr)
+	if maxInventory() or not centerPos or not ownerPlr then return end
+	-- Prüfen ob Owner noch draußen ist (könnte zurück ins Garden gegangen sein)
+	local ownerAttr = ownerPlr:GetAttribute("IsInOwnGarden")
+	if ownerAttr == true then return end
+
+	local garden = getTargetGarden(ownerPlr.Name)
+	if not garden then return end
+
+	-- Kandidaten sammeln und nach Distanz sortieren
+	local candidates = {}
+	for _, target in pairs(garden.Plants:GetChildren()) do
+		local fruits = target:FindFirstChild("Fruits")
+		local list   = fruits and fruits:GetChildren() or {target}
+		for _, tf in ipairs(list) do
+			if not isValidFruit(tf) then continue end
+			local nhp = tf:FindFirstChild("HarvestPart")
+			if not nhp then continue end
+			local d = (nhp.Position - centerPos).Magnitude
+			if d <= STEAL_NEARBY_RADIUS then
+				table.insert(candidates, { fruit = tf, dist = d })
+			end
+		end
+	end
+
+	-- Nächste zuerst
+	table.sort(candidates, function(a, b) return a.dist < b.dist end)
+
+	for _, entry in ipairs(candidates) do
+		if maxInventory() then break end
+		-- Erneut prüfen ob Owner noch draußen
+		if ownerPlr:GetAttribute("IsInOwnGarden") == true then break end
+
+		local tf = entry.fruit
+		if not tf or not tf.Parent then continue end
+		local tfId = tf:GetAttribute("FruitId")
+		local ok2, res2 = pcall(steal, tf, ownerPlr)
+		if not ok2 then
+			warn("stealNearby:", res2)
+			stealBlacklist[tf] = true
+			if tfId then stealBlacklistIds[tfId] = true end
+			valueCache[tf] = nil
+			-- Weiter mit nächster Frucht, nicht abbrechen
+		end
+	end
 end
 
 local function goToSpawnAndComplete()
@@ -616,6 +532,7 @@ end
 -- QUEUE
 -- ============================================================
 local function sortQueue()
+	-- Höhere Tier-Nummer = höhere Priorität (Pets > Seeds > Drops)
 	table.sort(queue, function(a, b) return a.t > b.t end)
 end
 local function removeTier(tier)
@@ -623,18 +540,16 @@ local function removeTier(tier)
 end
 local function addQueue(p, tier, mA)
 	for _, v in ipairs(queue) do if v.m == p then return end end
-	table.insert(queue, { m = p, t = tier, a = mA}); sortQueue()
+	table.insert(queue, { m = p, t = tier, a = mA }); sortQueue()
 end
 local function loopAdd(f, tier)
 	for _, item in pairs(f:GetChildren()) do addQueue(item, tier) end
 end
 local function findEntry(tbl, model, tier)
-    for i, v in ipairs(tbl) do
-        if v.m == model and v.t == tier then
-            return i
-        end
-    end
-    return nil
+	for i, v in ipairs(tbl) do
+		if v.m == model and v.t == tier then return i end
+	end
+	return nil
 end
 
 -- ============================================================
@@ -660,12 +575,9 @@ local function getGearList()
 	if ok and items then for _, d in pairs(items) do if d.Name then st[#st + 1] = d.Name end end end
 	return st
 end
-
 local function getPetList()
 	local st = {}
-	for _, d in pairs(PetData) do
-		if d.DisplayName then st[#st + 1] = d.DisplayName end
-	end
+	for _, d in pairs(PetData) do if d.DisplayName then st[#st + 1] = d.DisplayName end end
 	return st
 end
 
@@ -683,6 +595,7 @@ local function isInGarden(t)
 	return p and p:GetAttribute("IsInOwnGarden") == true
 end
 
+-- Besten Spieler finden (UNABHÄNGIG von Gartenstatus — für Fling + Steal)
 local function findBestTargetPlayer()
 	if bestCache and bestCache.plr and bestCache.plr.Parent
 	   and os.clock() - bestCacheT < BEST_TTL then
@@ -710,6 +623,7 @@ local function findBestTargetPlayer()
 	return bPlr
 end
 
+-- Beste stählbare Frucht (PP aktiv) von einem Spieler holen
 local function getStealableFruit(plr)
 	if not plr then return nil end
 	local garden = getTargetGarden(plr.Name); if not garden then return nil end
@@ -723,7 +637,7 @@ local function getStealableFruit(plr)
 					local v = getFruitValue(tf)
 					if v > bestV then bestV = v; bestFruit = tf end
 				else
-					return tf
+					return tf  -- Für stealTarget: erste valide reicht
 				end
 			end
 		end
@@ -770,6 +684,7 @@ local function buyAllGear()
 		buyGear(i.Name, i.Value)
 	end
 end
+
 for _, v in pairs(ReplicatedStorage.StockValues.GearShop.Items:GetChildren()) do
 	v:GetPropertyChangedSignal("Value"):Connect(function()
 		buyGear(v.Name, v.Value)
@@ -786,28 +701,30 @@ end
 -- ============================================================
 -- PETS
 -- ============================================================
-
 local function addPetToQueue(p)
 	if not autoBuyPets then return end
 	local n = p:GetAttribute("PetName")
 	if not n or not table.find(autoBuySelectedPet, n) then return end
-	local a = findEntry(queue, p, 3)
-	if a then return end
-	addQueue(p, 3, 8)
+	if findEntry(queue, p, 3) then return end
+	addQueue(p, 3, 8)  -- maxAtt=8: 8 × 0.1s = 0.8s max pro Pet
 end
 
-WildPetSpawns.ChildAdded:Connect(function(p)
-	addPetToQueue(p)
-end)
+WildPetSpawns.ChildAdded:Connect(addPetToQueue)
 
 local function addAllPetsToQueue()
-	for _, pet in pairs(WildPetSpawns:GetChildren()) do
-		addPetToQueue(pet)
-	end
+	for _, pet in pairs(WildPetSpawns:GetChildren()) do addPetToQueue(pet) end
 end
 
 -- ============================================================
--- STEAL
+-- TASK: STEAL + AUTO-FLING + NEARBY-STEAL LOOP
+--
+-- Ablauf:
+--  1. Steal-Modus aktiv? → Target bestimmen
+--  2. Target im Garten + Nacht + flingOnGarden → flingen
+--  3. Target draußen + Nacht → Hauptfrucht stehlen
+--     → Danach ALLE naheliegenden Früchte im Radius stehlen
+--     → Dann erst zu Spawn zurück
+--  4. Sonst → warten
 -- ============================================================
 task.spawn(function()
 	while true do
@@ -824,6 +741,7 @@ task.spawn(function()
 
 			if targetPlr then
 				if isInGarden(targetPlr) then
+					-- Im Garten: kann nicht bestohlen werden
 					if flingOnGarden and night.Value and not isFlingling then
 						bestCache = nil
 						task.spawn(function()
@@ -836,6 +754,7 @@ task.spawn(function()
 					end
 
 				elseif night.Value then
+					-- Draußen bei Nacht → stehlen
 					if maxInventory() then
 						pcall(goToSpawnAndComplete); task.wait(1)
 					else
@@ -844,7 +763,15 @@ task.spawn(function()
 							local fruitId = fruit:GetAttribute("FruitId")
 							local ok, result = pcall(steal, fruit, targetPlr)
 							if ok and result then
-								pcall(goToSpawnAndComplete); bestCache = nil
+								bestCache = nil
+
+								-- [NEU] Naheliegende Früchte mitnehmen bevor wir zu Spawn gehen
+								local mainHp = fruit:FindFirstChild("HarvestPart")
+								if mainHp and not maxInventory() then
+									stealNearbyFruits(mainHp.Position, targetPlr)
+								end
+
+								pcall(goToSpawnAndComplete)
 							elseif not ok then
 								warn("steal:", result)
 								stealBlacklist[fruit] = true
@@ -856,12 +783,14 @@ task.spawn(function()
 						end
 					end
 				else
-					task.wait(1.0)
+					task.wait(1.0) -- Tag → warten
 				end
 			else
 				task.wait(0.5)
 			end
-		elseif not isFlinging and #queue > 0 then
+
+		-- FIX: War 'not isFlinging' (falsche Variable) → jetzt korrekt 'not isFlingling'
+		elseif not isFlingling and #queue > 0 then
 			local item = table.remove(queue, 1)
 			if item and item.m and item.m.Parent then pcall(collect, item.m, item.a) end
 		end
@@ -869,6 +798,9 @@ task.spawn(function()
 	end
 end)
 
+-- ============================================================
+-- TASK: UTILITY (noclip, speed)
+-- ============================================================
 task.spawn(function()
 	while task.wait() do
 		if noclip then noclipLoop() end
@@ -881,7 +813,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- AUTO COLLECT
+-- TASK: AUTO COLLECT (eigene Früchte)
 -- ============================================================
 task.spawn(function()
 	while true do
@@ -910,6 +842,9 @@ task.spawn(function()
 	end
 end)
 
+-- ============================================================
+-- TASK: MANUELLER FLING
+-- ============================================================
 task.spawn(function()
 	while true do
 		task.wait(0.2)
@@ -936,14 +871,12 @@ local function createEsp(fruit)
 	if not activeESPs[fruit] then
 		local bg = Instance.new("BillboardGui")
 		bg.Adornee = fruit:FindFirstChild("HarvestPart") or fruit
-		bg.Size = UDim2.new(0, 100, 0, 50); bg.StudsOffset = Vector3.new(0, 2, 0)
-		bg.AlwaysOnTop = true
+		bg.Size = UDim2.new(0, 100, 0, 50); bg.StudsOffset = Vector3.new(0, 2, 0); bg.AlwaysOnTop = true
 		local tl = Instance.new("TextLabel")
 		tl.Name = "ValueLabel"; tl.Parent = bg; tl.Size = UDim2.new(1, 0, 1, 0)
 		tl.BackgroundTransparency = 1; tl.TextColor3 = Color3.new(0.3, 1, 0.3)
 		tl.TextStrokeTransparency = 0; tl.Text = "Val: " .. formatNumber(val)
-		tl.Font = Enum.Font.GothamBold; tl.TextSize = 14
-		bg.Parent = espFolder
+		tl.Font = Enum.Font.GothamBold; tl.TextSize = 14; bg.Parent = espFolder
 		activeESPs[fruit] = bg; activeESPValues[fruit] = val
 	else
 		if activeESPValues[fruit] ~= val then
@@ -1013,8 +946,7 @@ local StealTargetSelect = StealTab:CreateDropdown({
 StealTab:CreateToggle({ Name="Steal Target", CurrentValue=stealTargetToggled, Flag="stealtargettoggled",
 	Callback=function(v) stealTargetToggled=v; if v then resetStealState() end end })
 
--- Auto-Fling gilt für BEIDE Modi (Steal Best + Target)
-StealTab:CreateSection("Auto-Fling")
+StealTab:CreateSection("Auto-Fling (gilt für Steal Best + Target)")
 StealTab:CreateToggle({ Name="Fling if in garden", CurrentValue=flingOnGarden, Flag="flingongarden",
 	Callback=function(v) flingOnGarden=v end })
 StealTab:CreateSlider({ Name="Fling Strength", Range={1,10}, Increment=1,
@@ -1049,19 +981,15 @@ AutoTab:CreateSlider({ Name="Sell at", Range={1,100}, Increment=1, Suffix="Fruit
 
 AutoTab:CreateSection("Buying")
 AutoTab:CreateDropdown({ Name="Select Seeds", Options=getSeedList(), CurrentOption={},
-	MultipleOptions=true, Flag="autobuyselected", Callback=function(o) autoBuySelected=o; buyAllSeeds() end })
+	MultipleOptions=true, Flag="autobuyselected",
+	Callback=function(o) autoBuySelected=o; buyAllSeeds() end })
 AutoTab:CreateToggle({ Name="Auto Buy Seeds", CurrentValue=autoBuy, Flag="autobuyseeds",
-	Callback=function(v)
-		autoBuy = v
-		if v then buyAllSeeds() end
-	end })
+	Callback=function(v) autoBuy=v; if v then buyAllSeeds() end end })
 AutoTab:CreateDropdown({ Name="Select Gear", Options=getGearList(), CurrentOption={},
-	MultipleOptions=true, Flag="autobuygearselected", Callback=function(o) autoBuySelectedGear=o; buyAllGear() end })
+	MultipleOptions=true, Flag="autobuygearselected",
+	Callback=function(o) autoBuySelectedGear=o; buyAllGear() end })
 AutoTab:CreateToggle({ Name="Auto Buy Gear", CurrentValue=autoBuyGear, Flag="autobuygear",
-	Callback=function(v)
-		autoBuyGear = v
-		if v then buyAllGear() end
-	end })
+	Callback=function(v) autoBuyGear=v; if v then buyAllGear() end end })
 
 AutoTab:CreateSection("Own")
 AutoTab:CreateToggle({ Name="Auto Collect Own Fruits", CurrentValue=autoCollect, Flag="autocollect",
