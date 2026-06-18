@@ -7,6 +7,7 @@ local RunService   = game:GetService("RunService")
 local RepStore     = game:GetService("ReplicatedStorage")
 local CoreGui      = game:GetService("CoreGui")
 local Players      = game:GetService("Players")
+local Backpack	   = Players.LocalPlayer.Backpack
 local V3           = Vector3.new
 local V0           = Vector3.zero
 local CF           = CFrame.new
@@ -319,6 +320,8 @@ local function performFling(tp)
 	isFlinging = true
 	local char,hrp = getChar()
 	if not char or not hrp then isFlinging=false; return end
+	local wb = Backpack:FindFirstChild("Wheelbarrow") or char:FindFirstChild("Wheelbarrow")
+	if not wb then isFlinging=false; return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then isFlinging=false; return end
 	local tc = tp.Character
@@ -342,6 +345,8 @@ local function performFling(tp)
 	local ok,err = pcall(function()
 		local t0=tick(); local ang=0
 		repeat
+			if not wb.Parent then break end
+			wb.Parent = char
 			if not thrp.Parent or not hrp.Parent then break end
 			ang = ang+120
 			local ra = mrad(ang)
@@ -934,14 +939,14 @@ local StealTgtDd = StealTab:CreateDropdown({
 StealTab:CreateToggle({ Name="Steal Target", CurrentValue=stealTgtOn, Flag="stealtargettoggled",
 	Callback=function(v) stealTgtOn=v; if v then resetSteal() end end })
 
-StealTab:CreateSection("Auto-Fling")
+StealTab:CreateSection("Auto-Fling (requires wheelbarrow)")
 StealTab:CreateToggle({ Name="Fling if in Garden", CurrentValue=flingGarden, Flag="flingongarden",
 	Callback=function(v) flingGarden=v end })
 StealTab:CreateSlider({ Name="Fling Strength", Range={1,10}, Increment=1,
 	CurrentValue=flingStr, Flag="flingstrength",
 	Callback=function(v) flingStr=v end })
 
-StealTab:CreateSection("Manual Fling")
+StealTab:CreateSection("Manual Fling (requires wheelbarrow)")
 local FlingTgtDd = StealTab:CreateDropdown({
 	Name="Fling Target", Options={}, CurrentOption={},
 	MultipleOptions=false, Flag=nil,
