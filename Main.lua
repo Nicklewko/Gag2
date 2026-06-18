@@ -896,10 +896,14 @@ InfoTab:CreateParagraph({
 	Content=dcInvite
 })
 local Button = InfoTab:CreateButton({
-   Name = "Copy to clipboard",
-   Callback = function()
-   		setclipboard and setclipboard(dcInvite) or toclipboard(dcInvite)
-   end,
+    Name = "Copy to clipboard",
+    Callback = function()
+        if setclipboard then
+            setclipboard(dcInvite)
+        elseif toclipboard then
+            toclipboard(dcInvite)
+        end
+    end,
 })
 InfoTab:CreateSection("Notes")
 InfoTab:CreateParagraph({
