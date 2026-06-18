@@ -881,12 +881,25 @@ local StealTab  = Window:CreateTab("Steal",  4483362458)
 local PetTab    = Window:CreateTab("Pets",   4483362458)
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 
+local dcInvite = "https://discord.gg/VEGdZccS"
+
 -- ---- Info ----
 InfoTab:CreateSection("About")
 InfoTab:CreateLabel("Astro Hub — Grow a Garden Script")
 InfoTab:CreateParagraph({
 	Title="Discord:",
-	Content="https://discord.gg/VEGdZccS"
+	Content=dcInvite
+})
+local Button = InfoTab:CreateButton({
+   Name = "Copy to clipboard",
+   Callback = function()
+   		setclipboard and setclipboard(dcInvite) or toclipboard(dcInvite)
+   end,
+})
+InfoTab:CreateSection("Notes")
+InfoTab:CreateParagraph({
+	Title="NOTE:",
+	Content="Flinging is not working anymore"
 })
 InfoTab:CreateSection("Hotkeys")
 InfoTab:CreateLabel("K — Toggle UI")
