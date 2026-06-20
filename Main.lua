@@ -148,7 +148,7 @@ local stealTgt=nil;       local stealTgtOn=false
 local antiSteal=false;    local stealBest=false
 local flingOn=false;      local flingTgt=nil
 local flingStr=1;         local flingGarden=false
-local isFlinging=false
+local isFlinging=false;   local disableParticles=false
 local antiAfk=false
 
 local NEARBY_R = 15  -- studs radius for nearby-steal
@@ -879,6 +879,22 @@ end)
 dropped.ChildAdded:Connect(function(p) if collectDropped then addQ(p,1) end end)
 seeds.ChildAdded:Connect(function(p)   if collectSeeds   then addQ(p,2) end end)
 
+--Particles
+
+local function disableAllParticles()
+	for _, particle in pairs(workspace:GetDescendants()) do
+		if particle:IsA("ParticleEmitter") then
+			particle.Enabled = disableParticles
+		end
+	end
+end
+
+workspace.DescendantAdded:Connect(function(p)
+	if p and p:IsA("ParticleEmitter") and disableParticles then
+		p.Enabled = false
+	end
+end)
+
 -- ============================================================
 -- UI TABS
 -- ============================================================
@@ -893,7 +909,7 @@ local dcInvite = "https://discord.gg/VEGdZccS"
 
 -- ---- Info ----
 InfoTab:CreateSection("About")
-InfoTab:CreateLabel("Astro Hub — Grow a Garden Script")
+InfoTab:CreateLabel("Astro Hub — Grow a Garden 2")
 InfoTab:CreateParagraph({
 	Title="Discord:",
 	Content=dcInvite
@@ -1006,11 +1022,15 @@ VisualTab:CreateToggle({ Name="Enable Fruit ESP", CurrentValue=espOn, Flag="frui
 VisualTab:CreateSlider({ Name="ESP Min Value", Range={0,999}, Increment=1, Suffix="k",
 	CurrentValue=espMin, Flag="espminvalue",
 	Callback=function(v) espMin=v*1000 end })
+VisualTab:CreateSection("Performance")
+VisualTab:CreateToggle({ Name="No Particles", CurrentValue=disableParticles, Flag="noparticlestoggle",
+	Callback=function(v) disableParticles=v; disableAllParticles() end })
 VisualTab:CreateSection("Predictions (TBA)")
 VisualTab:CreateToggle({ Name="Predict Events", CurrentValue=false, Flag="predictevents",
 	Callback=function() end })
 VisualTab:CreateToggle({ Name="Predict Stocks", CurrentValue=false, Flag="predictstocks",
 	Callback=function() end })
+
 
 -- ---- Pets ----
 PetTab:CreateSection("Auto Buy")
