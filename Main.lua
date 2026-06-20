@@ -320,8 +320,8 @@ local function performFling(tp)
 	isFlinging = true
 	local char,hrp = getChar()
 	if not char or not hrp then isFlinging=false; return end
-	local wb = Backpack:FindFirstChild("Wheelbarrow") or char:FindFirstChild("Wheelbarrow")
-	if not wb then isFlinging=false; return end
+	--local wb = Backpack:FindFirstChild("Wheelbarrow") or char:FindFirstChild("Wheelbarrow")
+	--if not wb then isFlinging=false; return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then isFlinging=false; return end
 	local tc = tp.Character
@@ -345,8 +345,8 @@ local function performFling(tp)
 	local ok,err = pcall(function()
 		local t0=tick(); local ang=0
 		repeat
-			if not wb.Parent then break end
-			wb.Parent = char
+			--if not wb.Parent then break end
+			--wb.Parent = char
 			if not thrp.Parent or not hrp.Parent then break end
 			ang = ang+120
 			local ra = mrad(ang)
@@ -378,7 +378,7 @@ end
 -- ============================================================
 -- COLLECT  (queue items: fruits, seeds, pets)
 -- ============================================================
-local function collect(p, maxAtt)
+local function collect(p, maxAtt, t)
 	local char,hrp = getChar()
 	if not char or not hrp or not char:FindFirstChild("Head") then return end
 	if not p or not p.Parent then return end
@@ -396,9 +396,12 @@ local function collect(p, maxAtt)
 	local conn=moveTo(hrp,CF(pos-V3(0,4,0)))
 	local att=0
 	local ok,err=pcall(function()
+		if t == 3 then
+			task.wait(0.35)
+		end
 		prompt.HoldDuration=0
 		while prompt.Parent and att<maxAtt do
-			att=att+1; fireproximityprompt(prompt); noclipLoop(); tw(0.1)
+			att=att+1; fireproximityprompt(prompt); noclipLoop(); tw(0.07)
 		end
 	end)
 	conn:Disconnect(); char:PivotTo(old); workspace.Gravity=oldG
@@ -754,7 +757,7 @@ ts(function()
 
 		elseif not isFlinging and #queue>0 then
 			local item=table.remove(queue,1)
-			if item and item.m and item.m.Parent then pcall(collect,item.m,item.a) end
+			if item and item.m and item.m.Parent then pcall(collect,item.m,item.a,item.t) end
 		end
 		tw()
 	end
@@ -904,7 +907,7 @@ local Button = InfoTab:CreateButton({
 InfoTab:CreateSection("Notes")
 InfoTab:CreateParagraph({
 	Title="NOTE:",
-	Content="Flinging is not working anymore"
+	Content="Stealing WIP"
 })
 InfoTab:CreateSection("Hotkeys")
 InfoTab:CreateLabel("K — Toggle UI")
@@ -913,10 +916,10 @@ InfoTab:CreateLabel("K — Toggle UI")
 PlayerTab:CreateSection("Main")
 PlayerTab:CreateToggle({ Name="Noclip", CurrentValue=noclip, Flag="noclip",
 	Callback=function(v) noclip=v end })
-PlayerTab:CreateSlider({ Name="Walk Speed", Range={0,100}, Increment=1,
+PlayerTab:CreateSlider({ Name="Walk Speed", Range={0,50}, Increment=1,
 	CurrentValue=walkSpd, Flag="walkspd",
 	Callback=function(v) walkSpd=v end })
-PlayerTab:CreateSlider({ Name="Jump Height", Range={0,50}, Increment=0.5,
+PlayerTab:CreateSlider({ Name="Jump Height", Range={0,30}, Increment=0.5,
 	CurrentValue=jumpH, Flag="jumph",
 	Callback=function(v) jumpH=v end })
 
@@ -939,14 +942,14 @@ local StealTgtDd = StealTab:CreateDropdown({
 StealTab:CreateToggle({ Name="Steal Target", CurrentValue=stealTgtOn, Flag="stealtargettoggled",
 	Callback=function(v) stealTgtOn=v; if v then resetSteal() end end })
 
-StealTab:CreateSection("Auto-Fling (requires wheelbarrow)")
+StealTab:CreateSection("Auto-Fling")
 StealTab:CreateToggle({ Name="Fling if in Garden", CurrentValue=flingGarden, Flag="flingongarden",
 	Callback=function(v) flingGarden=v end })
 StealTab:CreateSlider({ Name="Fling Strength", Range={1,10}, Increment=1,
 	CurrentValue=flingStr, Flag="flingstrength",
 	Callback=function(v) flingStr=v end })
 
-StealTab:CreateSection("Manual Fling (requires wheelbarrow)")
+StealTab:CreateSection("Manual Fling")
 local FlingTgtDd = StealTab:CreateDropdown({
 	Name="Fling Target", Options={}, CurrentOption={},
 	MultipleOptions=false, Flag=nil,
