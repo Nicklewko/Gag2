@@ -493,7 +493,7 @@ local function stealNearby(centerPos, ownerPlr)
 		if maxInventory() then break end
 		if ownerPlr:GetAttribute("IsInOwnGarden")==true then break end
 		local tf=e.f
-		if not tf or not tf.Parent then continue end
+		if not tf or not tf.Parent or not night.Value then continue end
 		local tfId=tf:GetAttribute("FruitId")
 		local ok2,r2=pcall(steal,tf,ownerPlr)
 		if not ok2 then
