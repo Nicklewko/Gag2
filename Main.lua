@@ -884,7 +884,7 @@ seeds.ChildAdded:Connect(function(p)   if collectSeeds   then addQ(p,2) end end)
 local function disableAllParticles()
 	for _, particle in pairs(workspace:GetDescendants()) do
 		if particle:IsA("ParticleEmitter") then
-			particle.Enabled = disableParticles
+			particle.Enabled = not disableParticles
 		end
 	end
 end
