@@ -397,7 +397,9 @@ local function collect(p, maxAtt, t)
 	local att=0
 	local ok,err=pcall(function()
 		if t == 3 then
-			task.wait(0.35)
+			tw(0.6)
+		elseif t == 1 then
+			tw(0.25)
 		end
 		prompt.HoldDuration=0
 		while prompt.Parent and att<maxAtt do
@@ -1003,9 +1005,9 @@ AutoTab:CreateSlider({ Name="Max Value", Range={0,1000000}, Increment=100,
 VisualTab:CreateSection("ESP")
 VisualTab:CreateToggle({ Name="Enable Fruit ESP", CurrentValue=espOn, Flag="fruitesp",
 	Callback=function(v) espOn=v end })
-VisualTab:CreateSlider({ Name="ESP Min Value", Range={0,50000}, Increment=10,
+VisualTab:CreateSlider({ Name="ESP Min Value", Range={0,999}, Increment=1, Suffix="k",
 	CurrentValue=espMin, Flag="espminvalue",
-	Callback=function(v) espMin=v end })
+	Callback=function(v) espMin=v*1000 end })
 VisualTab:CreateSection("Predictions (TBA)")
 VisualTab:CreateToggle({ Name="Predict Events", CurrentValue=false, Flag="predictevents",
 	Callback=function() end })
