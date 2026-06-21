@@ -397,7 +397,7 @@ local function collect(p, maxAtt, t)
 	local att=0
 	local ok,err=pcall(function()
 		if t == 3 then
-			tw(1.1)
+			tw(2.6)
 		end
 		prompt.HoldDuration=0
 		while prompt.Parent and att<maxAtt do
