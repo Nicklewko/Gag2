@@ -438,7 +438,7 @@ local function collect(p, maxAtt, tier)
 
 	local att = 0
 	local ok, err = pcall(function()
-		if tier == 3 then tw(5) end
+		if tier == 3 then tw(1.5) end
 		prompt.HoldDuration = 0
 		while prompt.Parent and att < maxAtt do
 			att = att + 1
@@ -1076,11 +1076,6 @@ PetTab:CreateToggle({ Name="Buy Pets", CurrentValue=autoBuyPets, Flag="buypets",
 PetTab:CreateDropdown({ Name="Select Pets", Options=getPetList(), CurrentOption={},
 	MultipleOptions=true, Flag="autobuypetsselect",
 	Callback=function(o) autoBuyPetSel=o; addAllPetsQ() end })
-
-PetTab:CreateSection("Movement")
-PetTab:CreateSlider({ Name="Pet Follow Speed", Range={0,100}, Increment=1, Suffix=" studs/s (0 = instant)",
-	CurrentValue=petFollowSpeed, Flag="petfollowspeed",
-	Callback=function(v) petFollowSpeed=v end })
 
 -- ============================================================
 -- PLAYER LIST REFRESH
