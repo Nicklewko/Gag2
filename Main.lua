@@ -1,5 +1,5 @@
 -- ============================================================
--- ASTRO HUB 
+-- ASTRO HUB
 -- ============================================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
@@ -7,7 +7,6 @@ local RunService   = game:GetService("RunService")
 local RepStore     = game:GetService("ReplicatedStorage")
 local CoreGui      = game:GetService("CoreGui")
 local Players      = game:GetService("Players")
-local Backpack	   = Players.LocalPlayer.Backpack
 local V3           = Vector3.new
 local V0           = Vector3.zero
 local CF           = CFrame.new
@@ -18,7 +17,6 @@ local mmax         = math.max
 local mmin         = math.min
 local mclamp       = math.clamp
 local mabs         = math.abs
-local mrandom      = math.random
 local osclk        = os.clock
 local tw           = task.wait
 local ts           = task.spawn
@@ -150,8 +148,10 @@ local flingOn=false;      local flingTgt=nil
 local flingStr=1;         local flingGarden=false
 local isFlinging=false;   local disableParticles=false
 local antiAfk=false
+local petFollowSpeed=0    -- studs/sec while following a wandering pet; 0 = instant lock-on
 
-local NEARBY_R = 15  -- studs radius for nearby-steal
+local NEARBY_R        = 5           -- studs radius for nearby-steal
+local COLLECT_OFFSET  = V3(0,-4,0)   -- stand slightly below the collect target
 
 -- ============================================================
 -- ESP FOLDER
@@ -265,8 +265,11 @@ local Window = Rayfield:CreateWindow({
 Rayfield:Notify({ Title="Loading...", Content="Please wait.", Duration=5, Image=4483362458 })
 
 -- ============================================================
--- HELPERS
+-- MOVEMENT HELPERS
 -- ============================================================
+
+-- Static target, instant lock-on (used by steal / goToSpawn where the
+-- destination doesn't move and full orientation matters).
 local function moveTo(hrp, tCF)
 	return RunService.Heartbeat:Connect(function()
 		if hrp and hrp.Parent then
@@ -274,6 +277,47 @@ local function moveTo(hrp, tCF)
 			hrp.AssemblyLinearVelocity  = V0
 			hrp.AssemblyAngularVelocity = V0
 		end
+	end)
+end
+
+-- Live position of a part or model, re-read fresh every call (so a moving
+-- target, e.g. a wandering pet, is tracked instead of a single snapshot).
+local function getLivePos(inst)
+	if not inst or not inst.Parent then return nil end
+	if inst:IsA("BasePart") then
+		return inst.Position
+	elseif inst:IsA("Model") then
+		if inst.PrimaryPart then return inst.PrimaryPart.Position end
+		local ok, piv = pcall(function() return inst:GetPivot() end)
+		if ok then return piv.Position end
+	end
+	return nil
+end
+
+-- Internal generic follow utility: recomputes the target position every
+-- frame via getPosFn (instead of teleporting to one fixed spot) and either
+-- snaps to it instantly (speed <= 0) or walks toward it at `speed` studs/sec.
+local function moveToFollow(hrp, getPosFn, opts)
+	opts = opts or {}
+	local speed  = opts.speed or 0
+	local offset = opts.offset or V0
+	return RunService.Heartbeat:Connect(function(dt)
+		if not hrp or not hrp.Parent then return end
+		local pos = getPosFn()
+		if not pos then return end
+		local target = pos + offset
+		if speed <= 0 then
+			hrp.CFrame = CF(target)
+		else
+			local cur  = hrp.Position
+			local diff = target - cur
+			local dist = diff.Magnitude
+			if dist > 0.05 then
+				hrp.CFrame = CF(cur + diff.Unit * mmin(dist, speed * dt))
+			end
+		end
+		hrp.AssemblyLinearVelocity  = V0
+		hrp.AssemblyAngularVelocity = V0
 	end)
 end
 
@@ -320,8 +364,6 @@ local function performFling(tp)
 	isFlinging = true
 	local char,hrp = getChar()
 	if not char or not hrp then isFlinging=false; return end
-	--local wb = Backpack:FindFirstChild("Wheelbarrow") or char:FindFirstChild("Wheelbarrow")
-	--if not wb then isFlinging=false; return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then isFlinging=false; return end
 	local tc = tp.Character
@@ -345,8 +387,6 @@ local function performFling(tp)
 	local ok,err = pcall(function()
 		local t0=tick(); local ang=0
 		repeat
-			--if not wb.Parent then break end
-			--wb.Parent = char
 			if not thrp.Parent or not hrp.Parent then break end
 			ang = ang+120
 			local ra = mrad(ang)
@@ -375,10 +415,7 @@ local function performFling(tp)
 	isFlinging=false
 end
 
--- ============================================================
--- COLLECT  (queue items: fruits, seeds, pets)
--- ============================================================
-local function collect(p, maxAtt, t)
+local function collect(p, maxAtt, tier)
 	local char,hrp = getChar()
 	if not char or not hrp or not char:FindFirstChild("Head") then return end
 	if not p or not p.Parent then return end
@@ -390,22 +427,29 @@ local function collect(p, maxAtt, t)
 	end
 	if not prompt then return end
 	maxAtt = maxAtt or 700
-	local oldG=workspace.Gravity; workspace.Gravity=0
-	local old=char:GetPivot()
-	local pos=p:IsA("Model") and p:GetPivot().Position or p.Position
-	local conn=moveTo(hrp,CF(pos-V3(0,4,0)))
-	local att=0
-	local ok,err=pcall(function()
-		if t == 3 then
-			tw(7.5)
-		end
-		prompt.HoldDuration=0
-		while prompt.Parent and att<maxAtt do
-			att=att+1; fireproximityprompt(prompt); noclipLoop(); tw(0.07)
+
+	local oldG   = workspace.Gravity; workspace.Gravity = 0
+	local oldPos = char:GetPivot()
+
+	local speed = (tier == 3) and petFollowSpeed or 0
+	local conn  = moveToFollow(hrp, function() return getLivePos(p) end, {
+		speed = speed, offset = COLLECT_OFFSET,
+	})
+
+	local att = 0
+	local ok, err = pcall(function()
+		if tier == 3 then tw(5) end
+		prompt.HoldDuration = 0
+		while prompt.Parent and att < maxAtt do
+			att = att + 1
+			fireproximityprompt(prompt)
+			noclipLoop()
+			tw(0.07)
 		end
 	end)
-	conn:Disconnect(); char:PivotTo(old); workspace.Gravity=oldG
-	if not ok then warn("collect:",err) end
+
+	conn:Disconnect(); char:PivotTo(oldPos); workspace.Gravity = oldG
+	if not ok then warn("collect:", err) end
 end
 
 -- ============================================================
@@ -517,13 +561,14 @@ local function goToSpawn()
 end
 
 -- ============================================================
--- QUEUE
+-- QUEUE  (tier 3 = pets, tier 2 = seeds, tier 1 = dropped items —
+-- sorting descending by tier means pets are always handled first)
 -- ============================================================
 local function sortQ()
 	table.sort(queue,function(a,b) return a.t>b.t end)
 end
-local function removeTier(t)
-	for i=#queue,1,-1 do if queue[i].t==t then table.remove(queue,i) end end
+local function removeTier(tier)
+	for i=#queue,1,-1 do if queue[i].t==tier then table.remove(queue,i) end end
 end
 local function addQ(p,tier,mA)
 	for _,v in ipairs(queue) do if v.m==p then return end end
@@ -879,8 +924,9 @@ end)
 dropped.ChildAdded:Connect(function(p) if collectDropped then addQ(p,1) end end)
 seeds.ChildAdded:Connect(function(p)   if collectSeeds   then addQ(p,2) end end)
 
---Particles
-
+-- ============================================================
+-- PARTICLES
+-- ============================================================
 local function disableAllParticles()
 	for _, particle in pairs(workspace:GetDescendants()) do
 		if particle:IsA("ParticleEmitter") then
@@ -910,21 +956,13 @@ local dcInvite = "https://discord.gg/VEGdZccS"
 -- ---- Info ----
 InfoTab:CreateSection("About")
 InfoTab:CreateLabel("Astro Hub — Grow a Garden 2")
-InfoTab:CreateParagraph({
-	Title="Discord:",
-	Content=dcInvite
-})
-local Button = InfoTab:CreateButton({
-    Name = "Copy to clipboard",
-    Callback = function()
-       setclipboard(dcInvite)
-    end,
+InfoTab:CreateParagraph({ Title="Discord:", Content=dcInvite })
+InfoTab:CreateButton({
+	Name = "Copy to clipboard",
+	Callback = function() setclipboard(dcInvite) end,
 })
 InfoTab:CreateSection("Notes")
-InfoTab:CreateParagraph({
-	Title="NOTE:",
-	Content="Stealing WIP"
-})
+InfoTab:CreateParagraph({ Title="NOTE:", Content="Stealing WIP" })
 InfoTab:CreateSection("Hotkeys")
 InfoTab:CreateLabel("K — Toggle UI")
 
@@ -1031,7 +1069,6 @@ VisualTab:CreateToggle({ Name="Predict Events", CurrentValue=false, Flag="predic
 VisualTab:CreateToggle({ Name="Predict Stocks", CurrentValue=false, Flag="predictstocks",
 	Callback=function() end })
 
-
 -- ---- Pets ----
 PetTab:CreateSection("Auto Buy")
 PetTab:CreateToggle({ Name="Buy Pets", CurrentValue=autoBuyPets, Flag="buypets",
@@ -1039,6 +1076,11 @@ PetTab:CreateToggle({ Name="Buy Pets", CurrentValue=autoBuyPets, Flag="buypets",
 PetTab:CreateDropdown({ Name="Select Pets", Options=getPetList(), CurrentOption={},
 	MultipleOptions=true, Flag="autobuypetsselect",
 	Callback=function(o) autoBuyPetSel=o; addAllPetsQ() end })
+
+PetTab:CreateSection("Movement")
+PetTab:CreateSlider({ Name="Pet Follow Speed", Range={0,100}, Increment=1, Suffix=" studs/s (0 = instant)",
+	CurrentValue=petFollowSpeed, Flag="petfollowspeed",
+	Callback=function(v) petFollowSpeed=v end })
 
 -- ============================================================
 -- PLAYER LIST REFRESH
