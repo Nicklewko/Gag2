@@ -438,7 +438,7 @@ local function collect(p, maxAtt, tier)
 
 	local att = 0
 	local ok, err = pcall(function()
-		if tier == 3 then tw(1.5) end
+		if tier == 3 then tw(7.5) end
 		prompt.HoldDuration = 0
 		while prompt.Parent and att < maxAtt do
 			att = att + 1
