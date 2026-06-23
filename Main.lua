@@ -931,6 +931,7 @@ local function disableAllParticles()
 	for _, particle in pairs(workspace:GetDescendants()) do
 		if particle:IsA("ParticleEmitter") then
 			particle.Enabled = not disableParticles
+			task.wait()
 		end
 	end
 end
