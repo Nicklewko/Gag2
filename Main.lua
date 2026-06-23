@@ -149,7 +149,7 @@ local flingOn=false;      local flingTgt=nil
 local flingStr=1;         local flingGarden=false
 local isFlinging=false;   local disableParticles=false
 local antiAfk=false;      local ignoreSingleHarvest=false
-local petFollowSpeed=0    -- studs/sec while following a wandering pet; 0 = instant lock-on
+local petFollowSpeed=0;   local espHighlight=false
 
 local NEARBY_R        = 5            -- studs radius for nearby-steal
 local COLLECT_OFFSET  = V3(0,-4,0)   -- stand slightly below the collect target
@@ -905,6 +905,9 @@ end
 local function createEsp(fruit)
 	local val=getFVal(fruit); if val<espMin then return end
 	if not activeESPs[fruit] then
+		local hl=Instance.new("Highlight")
+		hl.Parent=fruit
+		hl.Enabled=espHighlight
 		local bg=Instance.new("BillboardGui")
 		bg.Adornee=fruit:FindFirstChild("HarvestPart") or fruit
 		bg.Size=UDim2.new(0,100,0,50); bg.StudsOffset=V3(0,2,0); bg.AlwaysOnTop=true
@@ -913,13 +916,20 @@ local function createEsp(fruit)
 		tl.BackgroundTransparency=1; tl.TextColor3=Color3.new(0.3,1,0.3)
 		tl.TextStrokeTransparency=0; tl.Text="Val: "..fmtNum(val)
 		tl.Font=Enum.Font.GothamBold; tl.TextSize=14; bg.Parent=espFolder
-		activeESPs[fruit]=bg; activeESPVals[fruit]=val
+		activeESPs[fruit]={u=bg,h=hl}; activeESPVals[fruit]=val
 	else
 		if activeESPVals[fruit]~=val then
 			activeESPVals[fruit]=val
-			local tl=activeESPs[fruit]:FindFirstChild("VL")
+			local tl=activeESPs[fruit].u:FindFirstChild("VL")
 			if tl then tl.Text="Val: "..fmtNum(val) end
 		end
+		activeESPs[fruit].h.Enabled=espHighlight
+	end
+end
+
+local function destTable(t)
+	for i, inst in pairs(t) do
+		inst:Destroy()
 	end
 end
 
@@ -932,7 +942,7 @@ ts(function()
 			end
 		end
 		for _,fruit in ipairs(rem) do
-			if activeESPs[fruit] then activeESPs[fruit]:Destroy() end
+			if activeESPs[fruit] then destTable(activeESPs[fruit]) end
 			activeESPs[fruit]=nil; activeESPVals[fruit]=nil
 		end
 		if not espOn then continue end
@@ -1091,6 +1101,8 @@ AutoTab:CreateSlider({ Name="Max Size Multi (0 = any)", Range={0,50}, Increment=
 VisualTab:CreateSection("ESP")
 VisualTab:CreateToggle({ Name="Enable Fruit ESP", CurrentValue=espOn, Flag="fruitesp",
 	Callback=function(v) espOn=v end })
+VisualTab:CreateToggle({ Name="Highlight Fruits", CurrentValue=espOn, Flag="esphighlight",
+	Callback=function(v) espHighlight=v end })
 VisualTab:CreateSlider({ Name="ESP Min Value", Range={0,999}, Increment=1, Suffix="k",
 	CurrentValue=espMin, Flag="espminvalue",
 	Callback=function(v) espMin=v*1000 end })
