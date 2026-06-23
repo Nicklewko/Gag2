@@ -156,7 +156,7 @@ local NEARBY_R        = 5            -- studs radius for nearby-steal
 local COLLECT_OFFSET  = V3(0,-4,0)   -- stand slightly below the collect target
 local AC_INTERVAL     = 0.15         -- own-garden auto-collect scan interval (perf: was every frame)
 local HIDE_PLANT_INTERVAL = 0.08     -- small batches keep toggles from causing frame spikes
-local HIDE_PLANT_SWEEP    = 2.0
+local HIDE_PLANT_IDLE_INTERVAL = 0.35
 local HIDE_PLANT_BUDGET   = 24
 
 -- ============================================================
@@ -612,6 +612,7 @@ end
 -- Single-harvest plants do not have a Fruits folder here, so they stay visible.
 -- ============================================================
 local hiddenPlantParts = setmetatable({},{__mode="k"})
+local hiddenPlants     = setmetatable({},{__mode="k"})
 local hidePlantQueued  = setmetatable({},{__mode="k"})
 local watchedPlants    = setmetatable({},{__mode="k"})
 local watchedFolders   = setmetatable({},{__mode="k"})
@@ -620,7 +621,6 @@ local hidePlantQueue   = {}
 local hidePlantHead    = 1
 local hidePlantTail    = 0
 local plantHiderReady  = false
-local lastPlantSweep   = 0
 
 local function disconnectAll(list)
 	if not list then return end
@@ -637,6 +637,13 @@ local function plantHiderEnabledFor(garden)
 	if not garden then return false end
 	if isOwnPlot(garden) then return hideOwnPlants end
 	return hideForeignPlants
+end
+
+local function getPlantHideState(plant)
+	local plantsFolder=plant and plant.Parent
+	local garden=plantsFolder and plantsFolder.Parent
+	local fruits=plant and plant:FindFirstChild("Fruits")
+	return fruits, fruits and plantHiderEnabledFor(garden)
 end
 
 local function pushPlantVisibility(plant)
@@ -689,6 +696,11 @@ local function restorePlantParts(plant)
 			restorePart(part)
 		end
 	end
+	if plant then
+		hiddenPlants[plant]=nil
+	else
+		hiddenPlants=setmetatable({},{__mode="k"})
+	end
 end
 
 local function applyPlantVisibility(plant)
@@ -697,26 +709,27 @@ local function applyPlantVisibility(plant)
 		return
 	end
 
-	local plantsFolder=plant.Parent
-	local garden=plantsFolder and plantsFolder.Parent
-	local fruits=plant:FindFirstChild("Fruits")
-	local shouldHide=fruits and plantHiderEnabledFor(garden)
+	local fruits, shouldHide=getPlantHideState(plant)
 
 	if not shouldHide then
 		restorePlantParts(plant)
 		return
 	end
 
+	if hiddenPlants[plant] then return end
+
 	for _,obj in ipairs(plant:GetDescendants()) do
 		if obj==fruits or obj:IsDescendantOf(fruits) then continue end
 		if obj:IsA("BasePart") then setPartHidden(obj) end
 	end
+	hiddenPlants[plant]=true
 end
 
 local function unwatchPlant(plant)
 	disconnectAll(watchedPlants[plant])
 	watchedPlants[plant]=nil
 	hidePlantQueued[plant]=nil
+	hiddenPlants[plant]=nil
 	restorePlantParts(plant)
 end
 
@@ -725,12 +738,25 @@ local function watchPlant(plant)
 	watchedPlants[plant]={
 		plant.DescendantAdded:Connect(function(obj)
 			if not (hideForeignPlants or hideOwnPlants) then return end
-			if obj:IsA("BasePart") or obj.Name=="Fruits" then
+			if obj.Name=="Fruits" then
+				hiddenPlants[plant]=nil
 				pushPlantVisibility(plant)
+				return
+			end
+			if obj:IsA("BasePart") then
+				local fruits, shouldHide=getPlantHideState(plant)
+				if shouldHide and not obj:IsDescendantOf(fruits) then
+					setPartHidden(obj)
+				elseif hiddenPlantParts[obj]~=nil then
+					restorePart(obj)
+				end
 			end
 		end),
 		plant.ChildRemoved:Connect(function(obj)
-			if obj.Name=="Fruits" then pushPlantVisibility(plant) end
+			if obj.Name=="Fruits" then
+				hiddenPlants[plant]=nil
+				pushPlantVisibility(plant)
+			end
 		end),
 		plant.AncestryChanged:Connect(function()
 			if not plant:IsDescendantOf(Gardens) then unwatchPlant(plant) end
@@ -804,23 +830,21 @@ end
 
 ts(function()
 	while true do
-		tw(HIDE_PLANT_INTERVAL)
-		if not (hideForeignPlants or hideOwnPlants) then continue end
-		ensurePlantHider()
+		local waitTime=HIDE_PLANT_IDLE_INTERVAL
+		if hideForeignPlants or hideOwnPlants then
+			ensurePlantHider()
 
-		if osclk()-lastPlantSweep>HIDE_PLANT_SWEEP then
-			lastPlantSweep=osclk()
-			queueAllPlantVisibility()
+			local done=0
+			while done<HIDE_PLANT_BUDGET do
+				local plant=popPlantVisibility()
+				if not plant then break end
+				hidePlantQueued[plant]=nil
+				applyPlantVisibility(plant)
+				done += 1
+			end
+			if done>0 then waitTime=HIDE_PLANT_INTERVAL end
 		end
-
-		local done=0
-		while done<HIDE_PLANT_BUDGET do
-			local plant=popPlantVisibility()
-			if not plant then break end
-			hidePlantQueued[plant]=nil
-			applyPlantVisibility(plant)
-			done += 1
-		end
+		tw(waitTime)
 	end
 end)
 
