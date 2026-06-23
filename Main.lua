@@ -138,7 +138,8 @@ local autoBuy=false;      local autoBuySel={}
 local autoBuyGear=false;  local autoBuyGearSel={}
 local autoBuyPets=false;  local autoBuyPetSel={}
 local autoCollect=false;  local collectMut=false
-local acMin=0;            local acMax=1000000
+local acMin=0;            local acMax=0          -- acMax 0 = no upper limit (ignored)
+local acMaxSize=0                                -- max size multiplier; 0 = no limit (ignored)
 local espOn=false;        local espMin=0
 local activeESPs={};      local activeESPVals={}
 local noclip=false;       local walkSpd=16; local jumpH=7.5
@@ -147,11 +148,12 @@ local antiSteal=false;    local stealBest=false
 local flingOn=false;      local flingTgt=nil
 local flingStr=1;         local flingGarden=false
 local isFlinging=false;   local disableParticles=false
-local antiAfk=false; 	  local ignoreSingleHarvest=false
+local antiAfk=false;      local ignoreSingleHarvest=false
 local petFollowSpeed=0    -- studs/sec while following a wandering pet; 0 = instant lock-on
 
-local NEARBY_R        = 5           -- studs radius for nearby-steal
+local NEARBY_R        = 5            -- studs radius for nearby-steal
 local COLLECT_OFFSET  = V3(0,-4,0)   -- stand slightly below the collect target
+local AC_INTERVAL     = 0.15         -- own-garden auto-collect scan interval (perf: was every frame)
 
 -- ============================================================
 -- ESP FOLDER
@@ -415,6 +417,9 @@ local function performFling(tp)
 	isFlinging=false
 end
 
+-- ============================================================
+-- COLLECT  (queue items: fruits, seeds, pets)
+-- ============================================================
 local function collect(p, maxAtt, tier)
 	local char,hrp = getChar()
 	if not char or not hrp or not char:FindFirstChild("Head") then return end
@@ -810,6 +815,8 @@ end)
 
 -- ============================================================
 -- TASK: UTILITY (noclip, speed)
+-- perf: only write WalkSpeed/JumpHeight when they actually change,
+-- instead of every single frame — avoids redundant replication.
 -- ============================================================
 ts(function()
 	while tw() do
@@ -817,36 +824,55 @@ ts(function()
 		local char=player.Character
 		if char then
 			local hum=char:FindFirstChild("Humanoid")
-			if hum then hum.WalkSpeed=walkSpd; hum.JumpHeight=jumpH end
+			if hum then
+				if hum.WalkSpeed  ~= walkSpd then hum.WalkSpeed  = walkSpd end
+				if hum.JumpHeight ~= jumpH   then hum.JumpHeight = jumpH   end
+			end
 		end
 	end
 end)
 
 -- ============================================================
 -- TASK: AUTO COLLECT (own fruits)
+-- Filters, in cheapest-first order:
+--   1) ripeness (Age >= MaxAge)               — plain attribute read
+--   2) mutation requirement                   — plain attribute read
+--   3) max size multiplier (0 = unlimited)    — a few attribute reads
+--   4) value range (acMax 0 = unlimited)      — cached, can recompute
+-- perf: scan interval throttled to AC_INTERVAL instead of every frame.
 -- ============================================================
 ts(function()
 	while true do
-		tw()
+		tw(AC_INTERVAL)
 		if not autoCollect or not plot or maxInventory() then continue end
 		local pPlants=plot:FindFirstChild("Plants"); if not pPlants then continue end
+
 		for _,plant in pairs(pPlants:GetChildren()) do
 			if not autoCollect then break end
 			local fr=plant:FindFirstChild("Fruits")
 			local tgts=fr and fr:GetChildren() or (not ignoreSingleHarvest and {plant}) or {}
+
 			for _,fruit in ipairs(tgts) do
 				if not autoCollect then break end
+
 				local age=fruit:GetAttribute("Age") or 0
 				local mx=fruit:GetAttribute("MaxAge") or 1
-				local mut=fruit:GetAttribute("Mutation")
-				if age>=mx and (not collectMut or (mut and mut~="")) then
-					local val=getFVal(fruit)
-					if val>=acMin and val<=acMax then
-						local fId=fruit:GetAttribute("FruitId")
-						local pId=fruit:GetAttribute("PlantId")
-						if pId then Networking.Garden.CollectFruit:Fire(pId,fId or ""); tw(0.03) end
-					end
+				if age<mx then continue end -- not ripe yet
+
+				if collectMut then
+					local mut=fruit:GetAttribute("Mutation")
+					if not mut or mut=="" then continue end
 				end
+
+				if acMaxSize>0 and getFruitSzMul(fruit)>acMaxSize then continue end
+
+				local val=getFVal(fruit)
+				if val<acMin then continue end
+				if acMax>0 and val>acMax then continue end
+
+				local fId=fruit:GetAttribute("FruitId")
+				local pId=fruit:GetAttribute("PlantId")
+				if pId then Networking.Garden.CollectFruit:Fire(pId,fId or ""); tw(0.03) end
 			end
 		end
 	end
@@ -926,12 +952,14 @@ seeds.ChildAdded:Connect(function(p)   if collectSeeds   then addQ(p,2) end end)
 
 -- ============================================================
 -- PARTICLES
+-- perf fix: removed a stray task.wait() that used to fire once per
+-- ParticleEmitter found in the whole workspace — with hundreds of
+-- emitters that turned a single toggle into a multi-second freeze.
 -- ============================================================
 local function disableAllParticles()
 	for _, particle in pairs(workspace:GetDescendants()) do
 		if particle:IsA("ParticleEmitter") then
 			particle.Enabled = not disableParticles
-			task.wait()
 		end
 	end
 end
@@ -1047,14 +1075,17 @@ AutoTab:CreateToggle({ Name="Auto Collect Own Fruits", CurrentValue=autoCollect,
 	Callback=function(v) autoCollect=v end })
 AutoTab:CreateToggle({ Name="Requires Mutation", CurrentValue=collectMut, Flag="collectmutation",
 	Callback=function(v) collectMut=v end })
-AutoTab:CreateToggle({ Name="Ignore Single-Harvest", CurrentValue=collectMut, Flag="ignoresingleharvest",
+AutoTab:CreateToggle({ Name="Ignore Single-Harvest", CurrentValue=ignoreSingleHarvest, Flag="ignoresingleharvest",
 	Callback=function(v) ignoreSingleHarvest=v end })
 AutoTab:CreateSlider({ Name="Min Value", Range={0,100000}, Increment=10,
 	CurrentValue=acMin, Flag="autocollectmin",
 	Callback=function(v) acMin=v end })
-AutoTab:CreateSlider({ Name="Max Value", Range={0,1000000}, Increment=100,
+AutoTab:CreateSlider({ Name="Max Value (0 = any)", Range={0,1000000}, Increment=100,
 	CurrentValue=acMax, Flag="autocollectmax",
 	Callback=function(v) acMax=v end })
+AutoTab:CreateSlider({ Name="Max Size Multi (0 = any)", Range={0,50}, Increment=1,
+	CurrentValue=acMaxSize, Flag="autocollectmaxsize",
+	Callback=function(v) acMaxSize=v end })
 
 -- ---- Visual ----
 VisualTab:CreateSection("ESP")
@@ -1079,6 +1110,11 @@ PetTab:CreateToggle({ Name="Buy Pets", CurrentValue=autoBuyPets, Flag="buypets",
 PetTab:CreateDropdown({ Name="Select Pets", Options=getPetList(), CurrentOption={},
 	MultipleOptions=true, Flag="autobuypetsselect",
 	Callback=function(o) autoBuyPetSel=o; addAllPetsQ() end })
+
+PetTab:CreateSection("Movement")
+PetTab:CreateSlider({ Name="Pet Follow Speed", Range={0,60}, Increment=1, Suffix=" studs/s (0 = instant)",
+	CurrentValue=petFollowSpeed, Flag="petfollowspeed",
+	Callback=function(v) petFollowSpeed=v end })
 
 -- ============================================================
 -- PLAYER LIST REFRESH
