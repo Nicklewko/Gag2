@@ -150,10 +150,14 @@ local flingStr=1;         local flingGarden=false
 local isFlinging=false;   local disableParticles=false
 local antiAfk=false;      local ignoreSingleHarvest=false
 local petFollowSpeed=0;   local espHighlight=false
+local hideForeignPlants=false; local hideOwnPlants=false
 
 local NEARBY_R        = 5            -- studs radius for nearby-steal
 local COLLECT_OFFSET  = V3(0,-4,0)   -- stand slightly below the collect target
 local AC_INTERVAL     = 0.15         -- own-garden auto-collect scan interval (perf: was every frame)
+local HIDE_PLANT_INTERVAL = 0.08      -- small batches keep toggles from causing frame spikes
+local HIDE_PLANT_SWEEP    = 2.0
+local HIDE_PLANT_BUDGET   = 24
 
 -- ============================================================
 -- ESP FOLDER
@@ -601,6 +605,224 @@ local function inGarden(t)
 	local p=typeof(t)=="Instance" and t or Players:FindFirstChild(t)
 	return p and p:GetAttribute("IsInOwnGarden")==true
 end
+
+-- ============================================================
+-- PLANT HIDER (anti-lag)
+-- Hides only the non-fruit body parts of multi-harvest plants.
+-- Single-harvest plants do not have a Fruits folder here, so they stay visible.
+-- ============================================================
+local hiddenPlantParts = setmetatable({},{__mode="k"})
+local hidePlantQueued  = setmetatable({},{__mode="k"})
+local watchedPlants    = setmetatable({},{__mode="k"})
+local watchedFolders   = setmetatable({},{__mode="k"})
+local watchedGardens   = setmetatable({},{__mode="k"})
+local hidePlantQueue   = {}
+local hidePlantHead    = 1
+local hidePlantTail    = 0
+local plantHiderReady  = false
+local lastPlantSweep   = 0
+
+local function disconnectAll(list)
+	if not list then return end
+	for _,conn in ipairs(list) do
+		if conn then pcall(function() conn:Disconnect() end) end
+	end
+end
+
+local function isOwnPlot(garden)
+	return garden == plot or (garden and garden.Name == "Plot"..tostring(plotId))
+end
+
+local function plantHiderEnabledFor(garden)
+	if not garden then return false end
+	if isOwnPlot(garden) then return hideOwnPlants end
+	return hideForeignPlants
+end
+
+local function pushPlantVisibility(plant)
+	if not plant or not plant.Parent or hidePlantQueued[plant] then return end
+	hidePlantQueued[plant]=true
+	hidePlantTail += 1
+	hidePlantQueue[hidePlantTail]=plant
+end
+
+local function popPlantVisibility()
+	if hidePlantHead>hidePlantTail then return nil end
+	local plant=hidePlantQueue[hidePlantHead]
+	hidePlantQueue[hidePlantHead]=nil
+	hidePlantHead += 1
+	if hidePlantHead>hidePlantTail then
+		hidePlantQueue={}; hidePlantHead=1; hidePlantTail=0
+	end
+	return plant
+end
+
+local function clearPlantVisibilityQueue()
+	hidePlantQueue={}; hidePlantQueued=setmetatable({},{__mode="k"})
+	hidePlantHead=1; hidePlantTail=0
+end
+
+local function setPartHidden(part)
+	if hiddenPlantParts[part]==nil then
+		hiddenPlantParts[part]=part.LocalTransparencyModifier
+	end
+	if part.LocalTransparencyModifier<1 then
+		part.LocalTransparencyModifier=1
+	end
+end
+
+local function restorePart(part)
+	local old=hiddenPlantParts[part]
+	if old~=nil then
+		if part and part.Parent then
+			part.LocalTransparencyModifier=old
+		end
+		hiddenPlantParts[part]=nil
+	end
+end
+
+local function restorePlantParts(plant)
+	for part in pairs(hiddenPlantParts) do
+		if not part or not part.Parent then
+			hiddenPlantParts[part]=nil
+		elseif not plant or part:IsDescendantOf(plant) then
+			restorePart(part)
+		end
+	end
+end
+
+local function applyPlantVisibility(plant)
+	if not plant or not plant.Parent then
+		restorePlantParts(plant)
+		return
+	end
+
+	local plantsFolder=plant.Parent
+	local garden=plantsFolder and plantsFolder.Parent
+	local fruits=plant:FindFirstChild("Fruits")
+	local shouldHide=fruits and plantHiderEnabledFor(garden)
+
+	if not shouldHide then
+		restorePlantParts(plant)
+		return
+	end
+
+	for _,obj in ipairs(plant:GetDescendants()) do
+		if obj==fruits or obj:IsDescendantOf(fruits) then continue end
+		if obj:IsA("BasePart") then setPartHidden(obj) end
+	end
+end
+
+local function unwatchPlant(plant)
+	disconnectAll(watchedPlants[plant])
+	watchedPlants[plant]=nil
+	hidePlantQueued[plant]=nil
+	restorePlantParts(plant)
+end
+
+local function watchPlant(plant)
+	if watchedPlants[plant] then return end
+	watchedPlants[plant]={
+		plant.DescendantAdded:Connect(function(obj)
+			if not (hideForeignPlants or hideOwnPlants) then return end
+			if obj:IsA("BasePart") or obj.Name=="Fruits" then
+				pushPlantVisibility(plant)
+			end
+		end),
+		plant.ChildRemoved:Connect(function(obj)
+			if obj.Name=="Fruits" then pushPlantVisibility(plant) end
+		end),
+		plant.AncestryChanged:Connect(function()
+			if not plant:IsDescendantOf(Gardens) then unwatchPlant(plant) end
+		end),
+	}
+end
+
+local function queueGardenPlants(garden)
+	local plants=garden and garden:FindFirstChild("Plants")
+	if not plants then return end
+	for _,plant in ipairs(plants:GetChildren()) do
+		watchPlant(plant)
+		pushPlantVisibility(plant)
+	end
+end
+
+local function watchPlantsFolder(plants)
+	if watchedFolders[plants] then return end
+	watchedFolders[plants]={
+		plants.ChildAdded:Connect(function(plant)
+			watchPlant(plant)
+			pushPlantVisibility(plant)
+		end),
+		plants.ChildRemoved:Connect(function(plant)
+			unwatchPlant(plant)
+		end),
+	}
+	for _,plant in ipairs(plants:GetChildren()) do watchPlant(plant) end
+end
+
+local function watchGarden(garden)
+	if watchedGardens[garden] then return end
+	watchedGardens[garden]={
+		garden.ChildAdded:Connect(function(obj)
+			if obj.Name=="Plants" then
+				watchPlantsFolder(obj)
+				queueGardenPlants(garden)
+			end
+		end),
+	}
+	local plants=garden:FindFirstChild("Plants")
+	if plants then watchPlantsFolder(plants) end
+end
+
+local function queueAllPlantVisibility()
+	for _,garden in ipairs(Gardens:GetChildren()) do
+		watchGarden(garden)
+		queueGardenPlants(garden)
+	end
+end
+
+local function ensurePlantHider()
+	if plantHiderReady then return end
+	plantHiderReady=true
+	for _,garden in ipairs(Gardens:GetChildren()) do watchGarden(garden) end
+	Gardens.ChildAdded:Connect(function(garden)
+		watchGarden(garden)
+		if hideForeignPlants or hideOwnPlants then queueGardenPlants(garden) end
+	end)
+end
+
+local function refreshPlantHider()
+	ensurePlantHider()
+	if hideForeignPlants or hideOwnPlants then
+		queueAllPlantVisibility()
+	else
+		clearPlantVisibilityQueue()
+		restorePlantParts()
+	end
+end
+
+ts(function()
+	while true do
+		tw(HIDE_PLANT_INTERVAL)
+		if not (hideForeignPlants or hideOwnPlants) then continue end
+		ensurePlantHider()
+
+		if osclk()-lastPlantSweep>HIDE_PLANT_SWEEP then
+			lastPlantSweep=osclk()
+			queueAllPlantVisibility()
+		end
+
+		local done=0
+		while done<HIDE_PLANT_BUDGET do
+			local plant=popPlantVisibility()
+			if not plant then break end
+			hidePlantQueued[plant]=nil
+			applyPlantVisibility(plant)
+			done += 1
+		end
+	end
+end)
 
 local function findBestTarget()
 	if bestCache and bestCache.plr and bestCache.plr.Parent and osclk()-bestCacheT<BTTL then
@@ -1109,6 +1331,10 @@ VisualTab:CreateSlider({ Name="ESP Min Value", Range={0,999}, Increment=1, Suffi
 VisualTab:CreateSection("Performance")
 VisualTab:CreateToggle({ Name="No Particles", CurrentValue=disableParticles, Flag="noparticlestoggle",
 	Callback=function(v) disableParticles=v; disableAllParticles() end })
+VisualTab:CreateToggle({ Name="Hide Foreign Plant Bodies", CurrentValue=hideForeignPlants, Flag="hideforeignplants",
+	Callback=function(v) hideForeignPlants=v; refreshPlantHider() end })
+VisualTab:CreateToggle({ Name="Hide Own Plant Bodies", CurrentValue=hideOwnPlants, Flag="hideownplants",
+	Callback=function(v) hideOwnPlants=v; refreshPlantHider() end })
 VisualTab:CreateSection("Predictions (TBA)")
 VisualTab:CreateToggle({ Name="Predict Events", CurrentValue=false, Flag="predictevents",
 	Callback=function() end })
