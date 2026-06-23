@@ -147,7 +147,7 @@ local antiSteal=false;    local stealBest=false
 local flingOn=false;      local flingTgt=nil
 local flingStr=1;         local flingGarden=false
 local isFlinging=false;   local disableParticles=false
-local antiAfk=false
+local antiAfk=false; 	  local ignoreSingleHarvest=false
 local petFollowSpeed=0    -- studs/sec while following a wandering pet; 0 = instant lock-on
 
 local NEARBY_R        = 5           -- studs radius for nearby-steal
@@ -833,7 +833,7 @@ ts(function()
 		for _,plant in pairs(pPlants:GetChildren()) do
 			if not autoCollect then break end
 			local fr=plant:FindFirstChild("Fruits")
-			local tgts=fr and fr:GetChildren() or {plant}
+			local tgts=fr and fr:GetChildren() or (not ignoreSingleHarvest and {plant}) or {}
 			for _,fruit in ipairs(tgts) do
 				if not autoCollect then break end
 				local age=fruit:GetAttribute("Age") or 0
@@ -1047,6 +1047,8 @@ AutoTab:CreateToggle({ Name="Auto Collect Own Fruits", CurrentValue=autoCollect,
 	Callback=function(v) autoCollect=v end })
 AutoTab:CreateToggle({ Name="Requires Mutation", CurrentValue=collectMut, Flag="collectmutation",
 	Callback=function(v) collectMut=v end })
+AutoTab:CreateToggle({ Name="Ignore Single-Harvest", CurrentValue=collectMut, Flag="ignoresingleharvest",
+	Callback=function(v) ignoreSingleHarvest=v end })
 AutoTab:CreateSlider({ Name="Min Value", Range={0,100000}, Increment=10,
 	CurrentValue=acMin, Flag="autocollectmin",
 	Callback=function(v) acMin=v end })
