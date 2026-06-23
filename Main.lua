@@ -155,7 +155,7 @@ local hideForeignPlants=false; local hideOwnPlants=false
 local NEARBY_R        = 5            -- studs radius for nearby-steal
 local COLLECT_OFFSET  = V3(0,-4,0)   -- stand slightly below the collect target
 local AC_INTERVAL     = 0.15         -- own-garden auto-collect scan interval (perf: was every frame)
-local HIDE_PLANT_INTERVAL = 0.08      -- small batches keep toggles from causing frame spikes
+local HIDE_PLANT_INTERVAL = 0.08     -- small batches keep toggles from causing frame spikes
 local HIDE_PLANT_SWEEP    = 2.0
 local HIDE_PLANT_BUDGET   = 24
 
@@ -208,7 +208,7 @@ local noclipPts={}
 local function rebuildNC(char)
 	noclipPts={}
 	if not char then return end
-	for _,d in pairs(char:GetDescendants()) do
+	for _,d in ipairs(char:GetDescendants()) do
 		if d:IsA("BasePart") then noclipPts[#noclipPts+1]=d end
 	end
 	char.DescendantAdded:Connect(function(d)
@@ -414,7 +414,7 @@ local function performFling(tp)
 	pcall(function()
 		if not hrp or not hrp.Parent then return end
 		hrp.CFrame=old*CF(0,0.5,0); hrp.Velocity=V0; hrp.RotVelocity=V0
-		for _,p in pairs(char:GetDescendants()) do
+		for _,p in ipairs(char:GetDescendants()) do
 			if p:IsA("BasePart") then p.Velocity=V0; p.RotVelocity=V0 end
 		end
 	end)
@@ -527,10 +527,10 @@ local function stealNearby(centerPos, ownerPlr)
 	local cands = {}
 	local plants = garden:FindFirstChild("Plants")
 	if not plants then return end
-	for _,tgt in pairs(plants:GetChildren()) do
+	for _,tgt in ipairs(plants:GetChildren()) do
 		local fr = tgt:FindFirstChild("Fruits")
 		if not fr then continue end
-		for _,tf in pairs(fr:GetChildren()) do
+		for _,tf in ipairs(fr:GetChildren()) do
 			if not isValid(tf) then continue end
 			local nhp = tf:FindFirstChild("HarvestPart")
 			if not nhp then continue end
@@ -584,7 +584,7 @@ local function addQ(p,tier,mA)
 	queue[#queue+1]={m=p,t=tier,a=mA}; sortQ()
 end
 local function loopAdd(f,tier)
-	for _,item in pairs(f:GetChildren()) do addQ(item,tier) end
+	for _,item in ipairs(f:GetChildren()) do addQ(item,tier) end
 end
 local function findEntry(tbl,model,tier)
 	for i,v in ipairs(tbl) do
@@ -824,27 +824,100 @@ ts(function()
 	end
 end)
 
+-- ============================================================
+-- GLOBAL FRUIT REGISTRY (event-driven; shared by ESP + Steal Best)
+--
+-- The old approach had BOTH the ESP loop (every 0.5s) and the steal-best
+-- search re-walking Gardens → Plants → Fruits from scratch with
+-- GetChildren() at every level, every single time. That tree-walk cost
+-- scales with total fruit count across every player on the server and was
+-- the single biggest perf sink in the script.
+--
+-- Instead we watch the tree ONCE: ChildAdded on Gardens/Plants/Fruits keeps
+-- two flat, weak-keyed sets up to date as the world changes, so both
+-- systems below just iterate a flat table instead of walking folders.
+--
+-- knownFruits     -> every fruit AND single-harvest "fruit-as-plant" model
+--                    (mirrors what ESP used to display labels on).
+-- stealableFruits -> only true Fruits-folder children (mirrors the
+--                    original steal-best scope exactly; single-harvest
+--                    plants were never steal targets and still aren't).
+-- ============================================================
+local knownFruits     = setmetatable({},{__mode="k"})
+local stealableFruits = setmetatable({},{__mode="k"})
+local frWatchedFruitsFolders = setmetatable({},{__mode="k"})
+local frWatchedPlants        = setmetatable({},{__mode="k"})
+local frWatchedPlantsFolders = setmetatable({},{__mode="k"})
+local frWatchedGardens        = setmetatable({},{__mode="k"})
+
+local function registerFruit(fruit, stealable)
+	knownFruits[fruit]=true
+	if stealable then stealableFruits[fruit]=true end
+end
+
+local function watchFruitsFolder(fr)
+	if frWatchedFruitsFolders[fr] then return end
+	frWatchedFruitsFolders[fr]=true
+	for _,f in ipairs(fr:GetChildren()) do registerFruit(f,true) end
+	fr.ChildAdded:Connect(function(f) registerFruit(f,true) end)
+end
+
+local function watchFruitPlant(plant)
+	if frWatchedPlants[plant] then return end
+	frWatchedPlants[plant]=true
+	local fr=plant:FindFirstChild("Fruits")
+	if fr then
+		watchFruitsFolder(fr)
+	else
+		registerFruit(plant,false) -- single-harvest: plant itself is the "fruit", ESP-only
+	end
+	plant.ChildAdded:Connect(function(obj)
+		if obj.Name=="Fruits" then
+			knownFruits[plant]=nil -- it's no longer the fallback "fruit" itself
+			watchFruitsFolder(obj)
+		end
+	end)
+end
+
+local function watchFruitPlants(plantsF)
+	if frWatchedPlantsFolders[plantsF] then return end
+	frWatchedPlantsFolders[plantsF]=true
+	for _,plant in ipairs(plantsF:GetChildren()) do watchFruitPlant(plant) end
+	plantsF.ChildAdded:Connect(watchFruitPlant)
+end
+
+local function watchFruitGarden(garden)
+	if frWatchedGardens[garden] then return end
+	frWatchedGardens[garden]=true
+	local plantsF=garden:FindFirstChild("Plants")
+	if plantsF then watchFruitPlants(plantsF) end
+	garden.ChildAdded:Connect(function(obj)
+		if obj.Name=="Plants" then watchFruitPlants(obj) end
+	end)
+end
+
+local function fruitRegistryInit()
+	for _,g in ipairs(Gardens:GetChildren()) do watchFruitGarden(g) end
+	Gardens.ChildAdded:Connect(watchFruitGarden)
+end
+fruitRegistryInit()
+
 local function findBestTarget()
 	if bestCache and bestCache.plr and bestCache.plr.Parent and osclk()-bestCacheT<BTTL then
 		return bestCache.plr
 	end
 	local bPlr,bV=nil,-1
-	for _,plr in pairs(Players:GetPlayers()) do
-		if plr==player then continue end
-		local g=getGarden(plr.Name); if not g then continue end
-		local plants=g:FindFirstChild("Plants"); if not plants then continue end
-		for _,tgt in pairs(plants:GetChildren()) do
-			local fr=tgt:FindFirstChild("Fruits"); if not fr then continue end
-			for _,tf in pairs(fr:GetChildren()) do
-				if sbList[tf] then continue end
-				local fId=tf:GetAttribute("FruitId")
-				if fId and sbIds[fId] then continue end
-				local age=tf:GetAttribute("Age"); local mx=tf:GetAttribute("MaxAge")
-				if not age or not mx or age<mx then continue end
-				local v=getFVal(tf)
-				if v>bV then bV=v; bPlr=plr end
-			end
+	for fruit in pairs(stealableFruits) do
+		if not fruit.Parent then
+			stealableFruits[fruit]=nil; knownFruits[fruit]=nil; continue
 		end
+		if not isValid(fruit) then continue end
+		local ownerUid=tonumber(fruit:GetAttribute("UserId"))
+		if not ownerUid then continue end
+		local plr=Players:GetPlayerByUserId(ownerUid)
+		if not plr or plr==player then continue end
+		local v=getFVal(fruit)
+		if v>bV then bV=v; bPlr=plr end
 	end
 	bestCache={plr=bPlr}; bestCacheT=osclk()
 	return bPlr
@@ -855,9 +928,9 @@ local function getStealFruit(plr)
 	local g=getGarden(plr.Name); if not g then return nil end
 	local plants=g:FindFirstChild("Plants"); if not plants then return nil end
 	local best,bV=nil,-1
-	for _,tgt in pairs(plants:GetChildren()) do
+	for _,tgt in ipairs(plants:GetChildren()) do
 		local fr=tgt:FindFirstChild("Fruits"); if not fr then continue end
-		for _,tf in pairs(fr:GetChildren()) do
+		for _,tf in ipairs(fr:GetChildren()) do
 			if isValid(tf) then
 				if stealBest then
 					local v=getFVal(tf); if v>bV then bV=v; best=tf end
@@ -875,7 +948,7 @@ end
 -- ============================================================
 local function getPlrList()
 	local t={}
-	for _,p in pairs(Players:GetPlayers()) do
+	for _,p in ipairs(Players:GetPlayers()) do
 		if p~=player then t[#t+1]=p.Name end
 	end
 	return t
@@ -890,7 +963,7 @@ end
 local function getGearList()
 	local t={}
 	local ok,items=pcall(function() return RepStore.StockValues.GearShop.Items:GetChildren() end)
-	if ok and items then for _,d in pairs(items) do if d.Name then t[#t+1]=d.Name end end end
+	if ok and items then for _,d in ipairs(items) do if d.Name then t[#t+1]=d.Name end end end
 	return t
 end
 local function getPetList()
@@ -914,22 +987,22 @@ local function buySeeds(name,amt)
 	ts(function() for _=1,amt do Networking.SeedShop.PurchaseSeed:Fire(name) end end)
 end
 local function buyAllSeeds()
-	for _,i in pairs(RepStore.StockValues.SeedShop.Items:GetChildren()) do buySeeds(i.Name,i.Value) end
+	for _,i in ipairs(RepStore.StockValues.SeedShop.Items:GetChildren()) do buySeeds(i.Name,i.Value) end
 end
 local function buyGear(name,amt)
 	if not autoBuyGear or not table.find(autoBuyGearSel,name) then return end
 	ts(function() for _=1,amt do Networking.GearShop.PurchaseGear:Fire(name) end end)
 end
 local function buyAllGear()
-	for _,i in pairs(RepStore.StockValues.GearShop.Items:GetChildren()) do buyGear(i.Name,i.Value) end
+	for _,i in ipairs(RepStore.StockValues.GearShop.Items:GetChildren()) do buyGear(i.Name,i.Value) end
 end
 
-for _,v in pairs(RepStore.StockValues.GearShop.Items:GetChildren()) do
+for _,v in ipairs(RepStore.StockValues.GearShop.Items:GetChildren()) do
 	v:GetPropertyChangedSignal("Value"):Connect(function()
 		buyGear(v.Name,v.Value); td(1,function() buyGear(v.Name,v.Value) end)
 	end)
 end
-for _,v in pairs(RepStore.StockValues.SeedShop.Items:GetChildren()) do
+for _,v in ipairs(RepStore.StockValues.SeedShop.Items:GetChildren()) do
 	v:GetPropertyChangedSignal("Value"):Connect(function()
 		buySeeds(v.Name,v.Value); td(1,function() buySeeds(v.Name,v.Value) end)
 	end)
@@ -949,7 +1022,7 @@ local function addPetQ(p)
 end
 WildPetSpawns.ChildAdded:Connect(addPetQ)
 local function addAllPetsQ()
-	for _,pet in pairs(WildPetSpawns:GetChildren()) do addPetQ(pet) end
+	for _,pet in ipairs(WildPetSpawns:GetChildren()) do addPetQ(pet) end
 end
 
 -- ============================================================
@@ -970,6 +1043,9 @@ end)
 
 -- ============================================================
 -- TASK: STEAL + AUTO-FLING + NEARBY-STEAL
+-- Flattened with early continues so a branch that already waited (tw(1),
+-- tw(0.5), tw(3.2)...) doesn't also pay the trailing per-iteration tw() —
+-- the old version waited twice in those paths.
 -- ============================================================
 ts(function()
 	while true do
@@ -983,48 +1059,51 @@ ts(function()
 				tPlr=Players:FindFirstChild(stealTgt)
 			end
 
-			if tPlr then
-				if inGarden(tPlr) then
-					if flingGarden and night.Value and not isFlinging then
-						bestCache=nil
-						ts(function()
-							local ok,err=pcall(performFling,tPlr)
-							if not ok then warn("auto-fling:",err); isFlinging=false end
-						end)
-						tw(3.2)
-					else
-						tw(1)
-					end
-				elseif night.Value then
-					if maxInventory() then
-						pcall(goToSpawn); tw(1)
-					else
-						local fruit=getStealFruit(tPlr)
-						if fruit and fruit.Parent then
-							local fId=fruit:GetAttribute("FruitId")
-							local ok,res=pcall(steal,fruit,tPlr)
-							if ok and res then
-								bestCache=nil
-								local mhp=fruit:FindFirstChild("HarvestPart")
-								if mhp and not maxInventory() then
-									stealNearby(mhp.Position,tPlr)
-								end
-								pcall(goToSpawn)
-							elseif not ok then
-								warn("steal:",res)
-								sbList[fruit]=true
-								if fId then sbIds[fId]=true end
-								valCache[fruit]=nil
-							end
-						else
-							tw(0.5)
-						end
-					end
+			if not tPlr then
+				tw(0.5); continue
+			end
+
+			if inGarden(tPlr) then
+				if flingGarden and night.Value then
+					bestCache=nil
+					ts(function()
+						local ok,err=pcall(performFling,tPlr)
+						if not ok then warn("auto-fling:",err); isFlinging=false end
+					end)
+					tw(3.2)
 				else
 					tw(1)
 				end
-			else
-				tw(0.5)
+				continue
+			end
+
+			if not night.Value then
+				tw(1); continue
+			end
+
+			if maxInventory() then
+				pcall(goToSpawn); tw(1); continue
+			end
+
+			local fruit=getStealFruit(tPlr)
+			if not (fruit and fruit.Parent) then
+				tw(0.5); continue
+			end
+
+			local fId=fruit:GetAttribute("FruitId")
+			local ok,res=pcall(steal,fruit,tPlr)
+			if ok and res then
+				bestCache=nil
+				local mhp=fruit:FindFirstChild("HarvestPart")
+				if mhp and not maxInventory() then
+					stealNearby(mhp.Position,tPlr)
+				end
+				pcall(goToSpawn)
+			elseif not ok then
+				warn("steal:",res)
+				sbList[fruit]=true
+				if fId then sbIds[fId]=true end
+				valCache[fruit]=nil
 			end
 
 		elseif not isFlinging and #queue>0 then
@@ -1037,11 +1116,11 @@ end)
 
 -- ============================================================
 -- TASK: UTILITY (noclip, speed)
--- perf: only write WalkSpeed/JumpHeight when they actually change,
--- instead of every single frame — avoids redundant replication.
+-- perf: throttled to 20Hz (was every single frame) and only writes
+-- WalkSpeed/JumpHeight when they actually change.
 -- ============================================================
 ts(function()
-	while tw() do
+	while tw(0.05) do
 		if noclip then noclipLoop() end
 		local char=player.Character
 		if char then
@@ -1069,7 +1148,7 @@ ts(function()
 		if not autoCollect or not plot or maxInventory() then continue end
 		local pPlants=plot:FindFirstChild("Plants"); if not pPlants then continue end
 
-		for _,plant in pairs(pPlants:GetChildren()) do
+		for _,plant in ipairs(pPlants:GetChildren()) do
 			if not autoCollect then break end
 			local fr=plant:FindFirstChild("Fruits")
 			local tgts=fr and fr:GetChildren() or (not ignoreSingleHarvest and {plant}) or {}
@@ -1116,6 +1195,9 @@ end)
 
 -- ============================================================
 -- ESP
+-- perf: discovery is now event-driven via the global fruit registry
+-- above — no more periodic Gardens → Plants → Fruits tree walk every
+-- 0.5s. The loop just iterates the flat, already-known fruit set.
 -- ============================================================
 local function fmtNum(n)
 	if not n then return "0" end
@@ -1168,13 +1250,10 @@ ts(function()
 			activeESPs[fruit]=nil; activeESPVals[fruit]=nil
 		end
 		if not espOn then continue end
-		for _,garden in pairs(Gardens:GetChildren()) do
-			local plants=garden:FindFirstChild("Plants"); if not plants then continue end
-			for _,plant in pairs(plants:GetChildren()) do
-				local fr=plant:FindFirstChild("Fruits")
-				if fr then for _,f in pairs(fr:GetChildren()) do createEsp(f) end
-				else createEsp(plant) end
-			end
+
+		for fruit in pairs(knownFruits) do
+			if not fruit.Parent then knownFruits[fruit]=nil; continue end
+			createEsp(fruit)
 		end
 	end
 end)
@@ -1184,12 +1263,9 @@ seeds.ChildAdded:Connect(function(p)   if collectSeeds   then addQ(p,2) end end)
 
 -- ============================================================
 -- PARTICLES
--- perf fix: removed a stray task.wait() that used to fire once per
--- ParticleEmitter found in the whole workspace — with hundreds of
--- emitters that turned a single toggle into a multi-second freeze.
 -- ============================================================
 local function disableAllParticles()
-	for _, particle in pairs(workspace:GetDescendants()) do
+	for _, particle in ipairs(workspace:GetDescendants()) do
 		if particle:IsA("ParticleEmitter") then
 			particle.Enabled = not disableParticles
 		end
