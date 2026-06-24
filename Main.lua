@@ -40,6 +40,8 @@ local PetData = {
 	BlackDragon   = { DisplayName="Black Dragon",    Rarity="Super",    SpawnChance=0,    BasePrice=1000000  },
 	IceSerpent    = { DisplayName="Ice Serpent",     Rarity="Super",    SpawnChance=0,    BasePrice=20000000 },
 	GoldenDragonfly={DisplayName="Golden Dragonfly", Rarity="Mythic",   SpawnChance=0.6,  BasePrice=3000000  },
+	Bear 		  = {DisplayName = "Bear",			 Rarity = "Mythic", SpawnChance = 0.225, BasePrice = 5000000},
+	Turtle 		  = {DisplayName = "Turtle",		 Rarity = "Rare", SpawnChance = 3.75, BasePrice = 70000  },
 }
 
 -- ============================================================
