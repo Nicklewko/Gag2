@@ -154,10 +154,10 @@ local antiAfk=false;      local ignoreSingleHarvest=false
 local petFollowSpeed=0;   local espHighlight=false
 local hideForeignPlants=false; local hideOwnPlants=false
 
-local NEARBY_R        = 5            -- studs radius for nearby-steal
-local COLLECT_OFFSET  = V3(0,-4,0)   -- stand slightly below the collect target
-local AC_INTERVAL     = 0.15         -- own-garden auto-collect scan interval (perf: was every frame)
-local HIDE_PLANT_INTERVAL = 0.08     -- small batches keep toggles from causing frame spikes
+local NEARBY_R        = 0
+local COLLECT_OFFSET  = V3(0,-4,0)
+local AC_INTERVAL     = 0.15
+local HIDE_PLANT_INTERVAL = 0.01
 local HIDE_PLANT_IDLE_INTERVAL = 0.35
 local HIDE_PLANT_BUDGET   = 24
 
@@ -449,7 +449,10 @@ local function collect(p, maxAtt, tier)
 
 	local att = 0
 	local ok, err = pcall(function()
-		if tier == 3 then tw(7.5) end
+		if tier == 3 then
+			local t = (hrp.Position - getLivePos(p)).Magnitude / 25
+			tw(t)
+		end
 		prompt.HoldDuration = 0
 		while prompt.Parent and att < maxAtt do
 			att = att + 1
