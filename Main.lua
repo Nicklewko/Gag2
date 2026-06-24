@@ -151,7 +151,7 @@ local flingOn=false;      local flingTgt=nil
 local flingStr=1;         local flingGarden=false
 local isFlinging=false;   local disableParticles=false
 local antiAfk=false;      local ignoreSingleHarvest=false
-local petFollowSpeed=0;   local espHighlight=false
+local petFollowSpeed=25;   local espHighlight=false
 local hideForeignPlants=false; local hideOwnPlants=false
 
 local NEARBY_R        = 0
@@ -1453,11 +1453,12 @@ PetTab:CreateToggle({ Name="Buy Pets", CurrentValue=autoBuyPets, Flag="buypets",
 PetTab:CreateDropdown({ Name="Select Pets", Options=getPetList(), CurrentOption={},
 	MultipleOptions=true, Flag="autobuypetsselect",
 	Callback=function(o) autoBuyPetSel=o; addAllPetsQ() end })
-
+--[[
 PetTab:CreateSection("Movement")
 PetTab:CreateSlider({ Name="Pet Follow Speed", Range={0,60}, Increment=1, Suffix=" studs/s (0 = instant)",
 	CurrentValue=petFollowSpeed, Flag="petfollowspeed",
 	Callback=function(v) petFollowSpeed=v end })
+]]
 
 -- ============================================================
 -- PLAYER LIST REFRESH
